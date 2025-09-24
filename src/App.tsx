@@ -9,173 +9,214 @@ function App() {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
-        {/* Logo - Top Right */}
-        <div className="absolute top-8 right-8 flex items-center gap-4 z-20">
-          <div className="relative">
-            {/* Hexagon Background */}
-            <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 via-green-500 to-teal-600 transform rotate-45 rounded-lg shadow-lg"></div>
-            {/* Inner Symbol */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-6 h-6 bg-white rounded-sm transform -rotate-45 flex items-center justify-center">
-                <div className="w-3 h-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full"></div>
-              </div>
-            </div>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-white text-xl font-bold tracking-tight">SoberWins</span>
-            <span className="text-emerald-300 text-xs font-medium -mt-1">Track your sober wins</span>
-          </div>
-        </div>
-        
-        {/* Logo - Top Right */}
-        <div className="absolute top-8 right-8 flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
-            <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
-              <div className="w-3 h-3 bg-gradient-to-r from-green-400 to-blue-500 rounded-full"></div>
-            </div>
-          </div>
-          <span className="text-white text-xl font-bold">SoberWins</span>
-        </div>
-        
-        {/* Logo - Top Right */}
-        <div className="absolute top-8 right-8 flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
-            <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
-              <div className="w-3 h-3 bg-gradient-to-r from-green-400 to-blue-500 rounded-full"></div>
-            </div>
-          </div>
-          <span className="text-white text-xl font-bold">SoberWins</span>
-        </div>
-        
-        {/* Logo */}
-        <div className="absolute top-8 left-8 flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
-            <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
-              <div className="w-3 h-3 bg-gradient-to-r from-green-400 to-blue-500 rounded-full"></div>
-            </div>
-          </div>
-          <span className="text-white text-xl font-bold">SoberWins</span>
-        </div>
-        
-        {/* Logo */}
-        <div className="absolute top-8 left-8 flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
-            <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
-              <div className="w-3 h-3 bg-gradient-to-r from-green-400 to-blue-500 rounded-full"></div>
-            </div>
-          </div>
-          <span className="text-white text-xl font-bold">SoberWins</span>
-        </div>
-        
-        {/* Background Image */}
+      <section className="relative min-h-screen overflow-hidden">
+        {/* Background Image with Enhanced Styling */}
         <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-105"
           style={{
             backgroundImage: 'url("/hero_image.jpg")'
           }}
         >
-          {/* Dark Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent"></div>
+          {/* Sophisticated Gradient Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30"></div>
         </div>
-        
-        <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{
-            backgroundImage: 'url("/hero_image.jpg")'
-          }}
-        >
-          {/* Dark Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
-        </div>
-        
-        {/* Content */}
-        <div className="absolute left-8 lg:left-16 top-1/2 transform -translate-y-1/2 z-10 max-w-xl">
-          {/* Main Headline */}
-          <div className="mb-4">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-400/30 rounded-full text-green-300 text-sm font-semibold mb-6">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              Day 3 Sober
+
+        {/* Logo - Top Right */}
+        <div className="absolute top-6 right-6 flex items-center gap-3 z-30">
+          <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center shadow-lg">
+            <div className="w-5 h-5 bg-white rounded-lg flex items-center justify-center">
+              <div className="w-2 h-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full"></div>
             </div>
           </div>
-          
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6 leading-tight">
-            Your first sober win{' '}
-            <span className="bg-gradient-to-r from-green-400 to-cyan-400 bg-clip-text text-transparent">
-              starts here
-            </span>
-          </h1>
-          
-          {/* Subheadline */}
-          <p className="text-base sm:text-lg text-gray-200 mb-6 leading-relaxed font-medium max-w-lg">
-            Soon you'll be able to track your own sober wins. Every skip adds up: calories avoided, money saved, energy regained.
-          </p>
-          
-          {/* Proof Points */}
-          <div className="flex flex-wrap items-center gap-4 mb-6">
-            <div className="flex items-center gap-2 bg-red-500/10 border border-red-400/20 rounded-lg px-3 py-2">
-              <Zap className="w-5 h-5 text-red-400" />
-              <div>
-                <div className="text-red-400 font-bold text-sm">Skip a pint</div>
-                <div className="text-red-300 text-xs">~200 calories saved*</div>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2 bg-green-500/10 border border-green-400/20 rounded-lg px-3 py-2">
-              <DollarSign className="w-5 h-5 text-green-400" />
-              <div>
-                <div className="text-green-400 font-bold text-sm">Skip 3 cocktails</div>
-                <div className="text-green-300 text-xs">~$25 saved*</div>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2 bg-pink-500/10 border border-pink-400/20 rounded-lg px-3 py-2">
-              <Heart className="w-5 h-5 text-pink-400" />
-              <div>
-                <div className="text-pink-400 font-bold text-sm">Every skip</div>
-                <div className="text-pink-300 text-xs">energy regained</div>
-              </div>
-            </div>
+          <div className="text-white">
+            <div className="text-xl font-bold tracking-tight">SoberWins</div>
+            <div className="text-emerald-300 text-xs font-medium -mt-0.5">Track your sober wins</div>
           </div>
-          
-          {/* Value proof disclaimer */}
-          <p className="text-xs text-gray-500 mb-4">
-            *Based on average beer/cocktail calories & prices
-          </p>
-          
-          {/* Primary CTA Button */}
-          <div className="flex flex-col gap-4 mb-6">
-            {/* Primary CTA Button */}
-            <button 
-              onClick={() => setIsSkipDrinkModalOpen(true)}
-              className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 text-lg font-bold text-black bg-gradient-to-r from-green-400 to-emerald-400 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-green-400/40 focus:outline-none focus:ring-4 focus:ring-green-400/50 shadow-lg"
-            >
-              <span>Skip a Drink</span>
-              <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+        </div>
+        
+        {/* Main Content */}
+        <div className="relative z-20 min-h-screen flex items-center">
+          <div className="max-w-7xl mx-auto px-6 lg:px-12 w-full">
+            <div className="max-w-2xl">
               
-              {/* Hover Glow Effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full opacity-0 group-hover:opacity-30 transition-opacity duration-300 blur-xl"></div>
-            </button>
-            
-            {/* Secondary CTA */}
-            <button className="group inline-flex items-center justify-center gap-2 px-8 py-4 text-base font-semibold text-white border-2 border-white/30 rounded-full transition-all duration-300 hover:border-white hover:bg-white/10">
-              <span>Get Early Access</span>
-            </button>
+              {/* Status Badge */}
+              <div className="inline-flex items-center gap-3 px-6 py-3 bg-emerald-500/20 border border-emerald-400/40 rounded-2xl text-emerald-300 text-base font-semibold mb-10 backdrop-blur-md shadow-lg">
+                <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse shadow-lg shadow-emerald-400/50"></div>
+                <span>Day 3 Sober</span>
+              </div>
+              
+              {/* Main Headline */}
+              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white mb-8 leading-[0.9] tracking-tight">
+                Your first sober win{' '}
+                <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">
+                  starts here
+                </span>
+              </h1>
+              
+              {/* Subheadline */}
+              <p className="text-2xl lg:text-3xl text-gray-200 mb-12 leading-relaxed font-light">
+                Soon you'll be able to track your own sober wins. Every skip adds up: calories avoided, money saved, energy regained.
+              </p>
+              
+              {/* Enhanced Key Reasons */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
+                <div className="flex items-center gap-4 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl px-6 py-4 hover:bg-white/15 transition-all duration-300 group">
+                  <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-pink-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Zap className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-white font-bold text-lg">Skip a pint</div>
+                    <div className="text-gray-300 text-sm">~200 calories saved</div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-4 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl px-6 py-4 hover:bg-white/15 transition-all duration-300 group">
+                  <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <DollarSign className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-white font-bold text-lg">Skip 3 cocktails</div>
+                    <div className="text-gray-300 text-sm">~$25 saved</div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-4 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl px-6 py-4 hover:bg-white/15 transition-all duration-300 group sm:col-span-2 lg:col-span-1">
+                  <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-rose-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Heart className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-white font-bold text-lg">Every skip</div>
+                    <div className="text-gray-300 text-sm">energy regained</div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* CTA Buttons */}
+              <div className="flex flex-col sm:flex-row gap-6 mb-10">
+                <button 
+                  onClick={() => setIsSkipDrinkModalOpen(true)}
+                  className="group relative inline-flex items-center justify-center gap-4 px-10 py-5 text-xl font-bold text-black bg-gradient-to-r from-emerald-400 to-teal-400 rounded-2xl transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-emerald-400/40 focus:outline-none focus:ring-4 focus:ring-emerald-400/50 shadow-xl min-w-[220px]"
+                >
+                  <span>Skip a Drink</span>
+                  <ArrowRight className="w-6 h-6 transition-transform group-hover:translate-x-1" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-300 to-teal-300 rounded-2xl opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
+                </button>
+                
+                <button className="group inline-flex items-center justify-center gap-3 px-10 py-5 text-xl font-semibold text-white border-2 border-white/30 rounded-2xl transition-all duration-300 hover:border-white hover:bg-white/10 backdrop-blur-md min-w-[220px]">
+                  <span>Get Early Access</span>
+                </button>
+              </div>
+              
+              {/* Bottom Text */}
+              <div className="space-y-3">
+                <p className="text-xl text-gray-200 font-medium">
+                  Be among the first to join the sober wins movement
+                </p>
+                <p className="text-base text-gray-400">
+                  Launching soon • Free to join • No credit card required
+                </p>
+                <p className="text-sm text-gray-500">
+                  *Based on average beer/cocktail calories & prices
+                </p>
+              </div>
+              
+            </div>
           </div>
-          
-          {/* Secondary Text */}
-          <p className="text-sm text-gray-400 mb-2">
-            Be among the first to join the sober wins movement
-          </p>
-          <p className="text-xs text-gray-500">
-            Launching soon • Free to join • No credit card required
-          </p>
         </div>
         
-        {/* Bottom Fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-gray-900 to-transparent pointer-events-none"></div>
+        {/* Enhanced Bottom Fade */}
+        <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-gray-900 via-gray-900/50 to-transparent pointer-events-none"></div>
       </section>
       
+      {/* Psychology Section */}
+      <section className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-24 overflow-hidden">
+        {/* Subtle Background Pattern */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 via-transparent to-teal-500/20"></div>
+        </div>
+        
+        <div className="relative max-w-7xl mx-auto px-6 lg:px-12">
+          <div className="text-center mb-20">
+            {/* Section Badge */}
+            <div className="inline-flex items-center gap-3 px-6 py-3 bg-emerald-500/10 border border-emerald-400/20 rounded-2xl text-emerald-300 text-base font-semibold mb-8 backdrop-blur-md">
+              <span className="text-2xl">🧬</span>
+              <span>Science-Backed</span>
+            </div>
+            
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-8 leading-tight tracking-tight">
+              Why SoberWins Works
+              <span className="block text-3xl sm:text-4xl lg:text-5xl bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent font-light">
+                (Backed by Psychology)
+              </span>
+            </h2>
+            <p className="text-2xl lg:text-3xl text-gray-200 max-w-4xl mx-auto mb-16 leading-relaxed font-light">
+              Every time you mark a drink you could have had but didn't, you turn self-control into a visible win. This simple shift makes all the difference.
+            </p>
+          </div>
+          
+          {/* Enhanced Psychology Proof Points */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-6xl mx-auto mb-20">
+            <div className="group bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-10 text-center hover:bg-white/10 hover:border-white/20 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/20">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-8 group-hover:scale-110 transition-transform duration-300 shadow-xl shadow-blue-500/30">
+                <span className="text-4xl">🧠</span>
+              </div>
+              <h3 className="text-white font-bold text-2xl mb-6 group-hover:text-blue-300 transition-colors">Loss Aversion Hack</h3>
+              <p className="text-gray-300 text-lg leading-relaxed mb-6">
+                Skipping feels like a gain, not a sacrifice. Your brain rewards wins over avoiding losses.
+              </p>
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-400/20 rounded-xl backdrop-blur-sm">
+                <span className="text-blue-400 text-sm font-medium">Kahneman & Tversky, 1979</span>
+              </div>
+            </div>
+            
+            <div className="group bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-10 text-center hover:bg-white/10 hover:border-white/20 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-emerald-500/20">
+              <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-8 group-hover:scale-110 transition-transform duration-300 shadow-xl shadow-emerald-500/30">
+                <span className="text-4xl">🎉</span>
+              </div>
+              <h3 className="text-white font-bold text-2xl mb-6 group-hover:text-emerald-300 transition-colors">Instant Reward Loop</h3>
+              <p className="text-gray-300 text-lg leading-relaxed mb-6">
+                Every tap gives you a dopamine boost that reinforces your choice. Immediate wins build lasting habits.
+              </p>
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-400/20 rounded-xl backdrop-blur-sm">
+                <span className="text-emerald-400 text-sm font-medium">Skinner, 1953</span>
+              </div>
+            </div>
+            
+            <div className="group bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-10 text-center hover:bg-white/10 hover:border-white/20 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-orange-500/20">
+              <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-8 group-hover:scale-110 transition-transform duration-300 shadow-xl shadow-orange-500/30">
+                <span className="text-4xl">🔥</span>
+              </div>
+              <h3 className="text-white font-bold text-2xl mb-6 group-hover:text-orange-300 transition-colors">Streak Power</h3>
+              <p className="text-gray-300 text-lg leading-relaxed mb-6">
+                Wins stack into streaks you don't want to break. The chain effect keeps you motivated long-term.
+              </p>
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500/10 border border-orange-400/20 rounded-xl backdrop-blur-sm">
+                <span className="text-orange-400 text-sm font-medium">Milkman, 2021</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Enhanced Key Insight */}
+          <div className="bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-xl border border-white/20 rounded-3xl p-12 max-w-5xl mx-auto shadow-2xl">
+            <div className="flex items-center justify-center gap-6 mb-8">
+              <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center shadow-xl shadow-emerald-400/30">
+                <span className="text-3xl">💡</span>
+              </div>
+              <h4 className="text-3xl lg:text-4xl font-bold text-white">The Key Difference</h4>
+            </div>
+            <p className="text-2xl lg:text-3xl text-gray-200 leading-relaxed text-center font-light">
+              You don't just count drinks consumed <span className="text-gray-400 italic">(that's depressing)</span>. 
+              You mark the ones you{' '}
+              <span className="bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent font-semibold">
+                could have had but didn't
+              </span>. 
+              This flips the frame from loss → gain.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section className="bg-gray-900 py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -252,31 +293,40 @@ function App() {
             <h3 className="text-2xl font-bold text-white mb-8">Build Your Streak in 3 Steps</h3>
             <div className="flex flex-col md:flex-row items-center justify-center gap-8 max-w-4xl mx-auto">
               <div className="flex-1 text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 bg-gradient-to-r from-blue-400 to-cyan-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-400/30">
                   <span className="text-white font-bold text-xl">1</span>
                 </div>
-                <h4 className="text-white font-semibold mb-2">Choose Yourself</h4>
-                <p className="text-gray-400 text-sm">Skip the drink, tap to celebrate it</p>
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <span className="text-2xl">💧</span>
+                  <h4 className="text-white font-semibold">Skip a Drink</h4>
+                </div>
+                <p className="text-gray-300 text-sm">Tap to lock your sober win. Every skip counts.</p>
               </div>
               
               <div className="hidden md:block text-gray-500">→</div>
               
               <div className="flex-1 text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-400/30">
                   <span className="text-white font-bold text-xl">2</span>
                 </div>
-                <h4 className="text-white font-semibold mb-2">See Your Progress</h4>
-                <p className="text-gray-400 text-sm">Track savings, health gains, and growing confidence</p>
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <span className="text-2xl">📈</span>
+                  <h4 className="text-white font-semibold">Watch Your Wins Add Up</h4>
+                </div>
+                <p className="text-gray-300 text-sm">Track money saved, calories avoided, and days gained.</p>
               </div>
               
               <div className="hidden md:block text-gray-500">→</div>
               
               <div className="flex-1 text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 bg-gradient-to-r from-orange-400 to-red-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-orange-400/30">
                   <span className="text-white font-bold text-xl">3</span>
                 </div>
-                <h4 className="text-white font-semibold mb-2">Feel Proud</h4>
-                <p className="text-gray-400 text-sm">Build momentum, gain strength, inspire yourself</p>
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <span className="text-2xl">🔥</span>
+                  <h4 className="text-white font-semibold">Stay Motivated</h4>
+                </div>
+                <p className="text-gray-300 text-sm">See your streak grow, feel stronger, and celebrate progress.</p>
               </div>
             </div>
           </div>
