@@ -2,9 +2,11 @@ import React from 'react';
 import { useState } from 'react';
 import { ArrowRight, Zap, DollarSign, Heart } from 'lucide-react';
 import SkipDrinkModal from './components/SkipDrinkModal';
+import EarlyAccessModal from './components/EarlyAccessModal';
 
 function App() {
   const [isSkipDrinkModalOpen, setIsSkipDrinkModalOpen] = useState(false);
+  const [isEarlyAccessOpen, setIsEarlyAccessOpen] = useState(false);
 
   return (
     <div className="min-h-screen">
@@ -112,7 +114,7 @@ function App() {
                   <div className="absolute inset-0 bg-gradient-to-r from-emerald-300 to-teal-300 rounded-2xl opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
                 </button>
                 
-                <button className="group inline-flex items-center justify-center gap-3 px-10 py-5 text-xl font-semibold text-white border-2 border-white/30 rounded-2xl transition-all duration-300 hover:border-white hover:bg-white/10 backdrop-blur-md min-w-[220px]">
+                <button onClick={() => setIsEarlyAccessOpen(true)} className="group inline-flex items-center justify-center gap-3 px-10 py-5 text-xl font-semibold text-white border-2 border-white/30 rounded-2xl transition-all duration-300 hover:border-white hover:bg-white/10 backdrop-blur-md min-w-[220px]">
                   <span>Get Early Access</span>
                 </button>
               </div>
@@ -347,6 +349,9 @@ function App() {
         isOpen={isSkipDrinkModalOpen} 
         onClose={() => setIsSkipDrinkModalOpen(false)} 
       />
+
+      {/* Early Access Modal */}
+      <EarlyAccessModal isOpen={isEarlyAccessOpen} onClose={() => setIsEarlyAccessOpen(false)} />
       
       {/* Additional Content Section (for demo purposes) */}
       <section className="bg-gray-900 py-16">
@@ -358,7 +363,7 @@ function App() {
             Join the waitlist and be among the first to experience the power of tracking your progress.
           </p>
           
-          <button className="group relative inline-flex items-center justify-center gap-3 px-12 py-6 text-xl font-bold text-black bg-gradient-to-r from-green-400 to-emerald-400 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-green-400/40 focus:outline-none focus:ring-4 focus:ring-green-400/50 shadow-lg">
+          <button onClick={() => setIsEarlyAccessOpen(true)} className="group relative inline-flex items-center justify-center gap-3 px-12 py-6 text-xl font-bold text-black bg-gradient-to-r from-green-400 to-emerald-400 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-green-400/40 focus:outline-none focus:ring-4 focus:ring-green-400/50 shadow-lg">
             <span>Get Early Access</span>
             <ArrowRight className="w-6 h-6 transition-transform group-hover:translate-x-1" />
             

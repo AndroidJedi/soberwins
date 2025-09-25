@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Plus, Minus, ArrowRight, CheckCircle, Mail, ChevronDown, ChevronUp } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 interface Drink {
   id: string;
@@ -74,6 +75,8 @@ export default function SkipDrinkModal({ isOpen, onClose }: SkipDrinkModalProps)
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showMoreDrinks, setShowMoreDrinks] = useState(false);
   const [showMoreSnacks, setShowMoreSnacks] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -132,12 +135,22 @@ export default function SkipDrinkModal({ isOpen, onClose }: SkipDrinkModalProps)
     };
   };
 
-  const handleEmailSubmit = (e: React.FormEvent) => {
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email) {
+    if (!email) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      if (!supabase) {
+        throw new Error('Database not configured');
+      }
+      const { error } = await supabase.from('early_access_leads').insert({ email });
+      if (error) throw error;
       setIsSubmitted(true);
-      // Here you would typically send the email to your backend
-      console.log('Email submitted:', email);
+    } catch (err: any) {
+      setSubmitError(err?.message || 'Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -551,11 +564,16 @@ export default function SkipDrinkModal({ isOpen, onClose }: SkipDrinkModalProps)
               
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-4 px-6 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300"
+                disabled={submitting}
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-4 px-6 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 disabled:opacity-60"
               >
-                Get Early Access
+                {submitting ? 'Submitting…' : 'Get Early Access'}
               </button>
             </form>
+
+            {submitError && (
+              <p className="text-red-400 text-sm mt-3">{submitError}</p>
+            )}
 
             <p className="text-gray-400 text-sm text-center mt-4">
               Free to join • No spam • Launching soon
