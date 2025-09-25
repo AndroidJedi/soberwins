@@ -22,32 +22,41 @@ function App() {
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30"></div>
         </div>
 
-        {/* Logo - Top Right */}
-        <div className="absolute top-6 right-6 flex items-center gap-3 z-30">
-          <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center shadow-lg">
-            <div className="w-5 h-5 bg-white rounded-lg flex items-center justify-center">
-              <div className="w-2 h-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full"></div>
+        {/* Top Bar - Single Container for Logo and Badge (All Screens) */}
+        <div className="absolute top-8 inset-x-0 z-30">
+          <div className="max-w-7xl mx-auto px-6 lg:px-12 flex items-center justify-between">
+            {/* Status Badge */}
+            <div className="inline-flex items-center gap-3 px-6 py-3 bg-emerald-500/20 border border-emerald-400/40 rounded-2xl text-emerald-300 text-base font-semibold backdrop-blur-md shadow-lg">
+              <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse shadow-lg shadow-emerald-400/50"></div>
+              <span>Day 3 Sober</span>
+            </div>
+            
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center shadow-lg">
+                <div className="w-5 h-5 bg-white rounded-lg flex items-center justify-center">
+                  <div className="w-2 h-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full"></div>
+                </div>
+              </div>
+              <div className="text-white">
+                <div className="text-xl font-bold tracking-tight">SoberWins</div>
+                <div className="text-emerald-300 text-xs font-medium -mt-0.5">Track your sober wins</div>
+              </div>
             </div>
           </div>
-          <div className="text-white">
-            <div className="text-xl font-bold tracking-tight">SoberWins</div>
-            <div className="text-emerald-300 text-xs font-medium -mt-0.5">Track your sober wins</div>
-          </div>
         </div>
+
         
+
         {/* Main Content */}
-        <div className="relative z-20 min-h-screen flex items-center">
+        <div className="relative z-20 min-h-screen flex items-center pt-28 lg:pt-32">
           <div className="max-w-7xl mx-auto px-6 lg:px-12 w-full">
             <div className="max-w-2xl">
+
               
-              {/* Status Badge */}
-              <div className="inline-flex items-center gap-3 px-6 py-3 bg-emerald-500/20 border border-emerald-400/40 rounded-2xl text-emerald-300 text-base font-semibold mb-10 backdrop-blur-md shadow-lg">
-                <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse shadow-lg shadow-emerald-400/50"></div>
-                <span>Day 3 Sober</span>
-              </div>
-              
+
               {/* Main Headline */}
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white mb-8 leading-[0.9] tracking-tight">
+              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white mb-8 leading-[0.9] tracking-tight mt-32 sm:mt-0">
                 Your first sober win{' '}
                 <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">
                   starts here
