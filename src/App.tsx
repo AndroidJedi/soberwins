@@ -1,36 +1,449 @@
-import React from 'react';
-import { useState } from 'react';
-import { ArrowRight, Zap, DollarSign, Heart } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowRight, Zap, DollarSign, Heart, Share2 } from 'lucide-react';
 import SkipDrinkModal from './components/SkipDrinkModal';
-import EarlyAccessModal from './components/EarlyAccessModal';
+import AuthModal from './components/AuthModal';
+import { supabase } from './lib/supabaseClient';
+
+// Count-up helper (custom hook)
+function useCountUp(value: number, durationMs = 700) {
+  const [display, setDisplay] = useState(0);
+  const startRef = useRef<number | null>(null);
+  const fromRef = useRef(0);
+  useEffect(() => {
+    startRef.current = null;
+    fromRef.current = display;
+    const start = fromRef.current;
+    const delta = value - start;
+    let raf: number;
+    const step = (t: number) => {
+      if (startRef.current === null) startRef.current = t;
+      const p = Math.min(1, (t - startRef.current) / durationMs);
+      setDisplay(start + delta * p);
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+  return Math.round(display);
+}
+
+function AnimatedNumber({ value, formatter }: { value: number; formatter?: (n: number) => string }) {
+  const d = useCountUp(value);
+  return <>{formatter ? formatter(d) : d}</>;
+}
 
 function App() {
   const [isSkipDrinkModalOpen, setIsSkipDrinkModalOpen] = useState(false);
-  const [isEarlyAccessOpen, setIsEarlyAccessOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isAuthed, setIsAuthed] = useState(false);
+  const [series, setSeries] = useState<{
+    dates: string[];
+    skips: number[];
+    calories: number[];
+    money: number[];
+  } | null>(null);
+  const [events, setEvents] = useState<Array<{ date: string; calories: number; money: number }>>([]);
+  const [bestStreak, setBestStreak] = useState(0);
+  const [shareNote, setShareNote] = useState<string | null>(null);
+  const confettiRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      if (!supabase) return;
+      const { data } = await supabase.auth.getSession();
+      if (isMounted) setIsAuthed(!!data.session);
+    })();
+
+    const { data: sub } = supabase?.auth.onAuthStateChange((_event, session) => {
+      setIsAuthed(!!session);
+    }) || { data: { subscription: { unsubscribe: () => {} } } } as any;
+
+    return () => {
+      isMounted = false;
+      sub?.subscription?.unsubscribe?.();
+    };
+  }, []);
+
+  const fetchSeries = async (days: number = 30) => {
+    if (!supabase || !isAuthed) return;
+    const from = new Date();
+    from.setDate(from.getDate() - (days - 1));
+    const fromIso = from.toISOString();
+    const { data, error } = await supabase
+      .from('skip_events')
+      .select('occurred_at,total_calories,total_money')
+      .gte('occurred_at', fromIso)
+      .order('occurred_at', { ascending: true });
+    if (error) return;
+
+    // Build daily buckets
+    const dateKey = (d: Date) => d.toISOString().slice(0, 10);
+    const buckets = new Map<string, { skips: number; calories: number; money: number }>();
+    // initialize all days to 0
+    for (let i = 0; i < days; i++) {
+      const d = new Date(from);
+      d.setDate(from.getDate() + i);
+      buckets.set(dateKey(d), { skips: 0, calories: 0, money: 0 });
+    }
+    const raw: Array<{ occurred_at: string; total_calories: number; total_money: number }> = (data || []) as any;
+    raw.forEach((row) => {
+      const d = new Date(row.occurred_at);
+      const k = dateKey(d);
+      const b = buckets.get(k);
+      if (b) {
+        b.skips += 1;
+        b.calories += row.total_calories || 0;
+        b.money += Number(row.total_money || 0);
+      }
+    });
+    const dates: string[] = Array.from(buckets.keys()).sort();
+    const skips = dates.map((k) => buckets.get(k)!.skips);
+    const calories = dates.map((k) => buckets.get(k)!.calories);
+    const money = dates.map((k) => buckets.get(k)!.money);
+    setSeries({ dates, skips, calories, money });
+    setEvents(raw.map(r => ({ date: new Date(r.occurred_at).toISOString().slice(0,10), calories: r.total_calories || 0, money: Number(r.total_money || 0) })));
+  };
+
+  useEffect(() => {
+    fetchSeries();
+  }, [isAuthed]);
+
+  const Sparkline = ({ values, stroke = '#10b981', format, avg }: { values: number[]; stroke?: string; format?: (n: number) => string; avg?: number }) => {
+    const w = 200;
+    const h = 60;
+    const m = 6;
+    const max = Math.max(1, ...values);
+    const pts = values.map((v, i) => {
+      const x = m + (i * (w - m * 2)) / Math.max(1, values.length - 1);
+      const y = h - m - (v / max) * (h - m * 2);
+      return `${x},${y}`;
+    }).join(' ');
+    const last = values[values.length - 1] ?? 0;
+    const lastX = m + ((values.length - 1) * (w - m * 2)) / Math.max(1, values.length - 1);
+    const lastY = h - m - (last / max) * (h - m * 2);
+    return (
+      <svg width="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+        {/* gridlines */}
+        {[0.25,0.5,0.75].map((g, i)=> (
+          <line key={i} x1={m} y1={h - m - g*(h - m*2)} x2={w - m} y2={h - m - g*(h - m*2)} stroke="rgba(255,255,255,0.18)" strokeWidth="1" />
+        ))}
+        {/* spark */}
+        <polyline fill="none" stroke={stroke} strokeWidth="3" strokeLinecap="round" points={pts} />
+        {values.map((v, i) => {
+          const x = m + (i * (w - m * 2)) / Math.max(1, values.length - 1);
+          const y = h - m - (v / max) * (h - m * 2);
+          const isLast = i === values.length - 1;
+          return <circle key={i} cx={x} cy={y} r={isLast ? 3 : 2} fill={stroke} opacity={isLast ? 1 : 0.5} />;
+        })}
+        {/* y-axis max label */}
+        <text x={m} y={10} fontSize="9" fill="rgba(255,255,255,0.45)">{format ? format(max) : max}</text>
+        {/* last value marker */}
+        <circle cx={lastX} cy={lastY} r={3} fill={stroke} />
+        <text x={Math.min(lastX + 4, w - 30)} y={Math.max(lastY - 4, 10)} fontSize="10" fill={stroke}>
+          {format ? format(last) : last}
+        </text>
+      </svg>
+    );
+  };
+
+  const Bars = ({ values, color = '#f59e0b', format, avg }: { values: number[]; color?: string; format?: (n: number) => string; avg?: number }) => {
+    const w = 200; const h = 60; const m = 6;
+    const max = Math.max(1, ...values);
+    const barW = (w - m * 2) / Math.max(1, values.length);
+    return (
+      <svg width="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+        {/* gridlines */}
+        {[0.25,0.5,0.75].map((g, i)=> (
+          <line key={i} x1={m} y1={h - m - g*(h - m*2)} x2={w - m} y2={h - m - g*(h - m*2)} stroke="rgba(255,255,255,0.18)" strokeWidth="1" />
+        ))}
+        {values.map((v, i) => {
+          const x = m + i * barW;
+          const bh = (v / max) * (h - m * 2);
+          const y = h - m - bh;
+          return <rect key={i} x={x} y={y} width={Math.max(1, barW - 2)} height={bh} fill={color} rx={2} />;
+        })}
+        {/* y-axis max label */}
+        <text x={m} y={10} fontSize="9" fill="rgba(255,255,255,0.45)">{format ? format(max) : max}</text>
+      </svg>
+    );
+  };
+
+  // Donut chart via conic-gradient
+  const Donut = ({ segments, label }: { segments: Array<{ value: number; color: string; name: string }>; label?: string }) => {
+    const total = Math.max(1, segments.reduce((a, s) => a + s.value, 0));
+    let acc = 0;
+    const stops: string[] = [];
+    segments.forEach((s) => {
+      const start = (acc / total) * 100;
+      acc += s.value;
+      const end = (acc / total) * 100;
+      stops.push(`${s.color} ${start}% ${end}%`);
+    });
+    const bg = `conic-gradient(${stops.join(',')})`;
+    return (
+      <div className="flex items-center gap-4">
+        <div className="relative w-28 h-28">
+          <div className="w-full h-full rounded-full" style={{ backgroundImage: bg }} />
+          <div className="absolute inset-3 rounded-full bg-gray-900/90 border border-white/10 flex items-center justify-center">
+            <div className="text-white text-sm font-bold">{label || ''}</div>
+          </div>
+        </div>
+        <div className="space-y-1">
+          {segments.map((s) => (
+            <div key={s.name} className="flex items-center gap-2 text-sm text-gray-300">
+              <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: s.color }} />
+              <span className="text-white/90">{s.name}</span>
+              <span className="text-white/60">{Math.round((s.value/total)*100)}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // Bubble timeline of per-skip events
+  const BubbleTimeline = ({ data }: { data: Array<{ value: number; money: number }> }) => {
+    const w = 260; const h = 70; const m = 8;
+    const maxV = Math.max(1, ...data.map(d => d.value));
+    return (
+      <svg width="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+        {data.map((d, i) => {
+          const x = m + (i * (w - m*2)) / Math.max(1, data.length - 1);
+          const r = 3 + (d.value / maxV) * 8;
+          const col = d.money > 0 ? '#60a5fa' : '#10b981';
+          return <circle key={i} cx={x} cy={h/2} r={r} fill={col} opacity={0.9} />;
+        })}
+      </svg>
+    );
+  };
+
+  // Dual sparkline (calories vs money)
+  const DualSparkline = ({ a, b, colorA = '#10b981', colorB = '#60a5fa' }: { a: number[]; b: number[]; colorA?: string; colorB?: string }) => {
+    const w = 260; const h = 90; const m = 8;
+    const max = Math.max(1, ...a, ...b);
+    const toPts = (vals: number[]) => vals.map((v, i) => {
+      const x = m + (i * (w - m * 2)) / Math.max(1, vals.length - 1);
+      const y = h - m - (v / max) * (h - m * 2);
+      return `${x},${y}`;
+    }).join(' ');
+    return (
+      <svg width="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+        <polyline fill="none" stroke={colorA} strokeWidth="3" points={toPts(a)} />
+        <polyline fill="none" stroke={colorB} strokeWidth="3" points={toPts(b)} opacity={0.9} />
+      </svg>
+    );
+  };
+
+  // Heatmap of last 5 weeks (7x5 grid: rows = weekdays)
+  const Heatmap30 = ({ values }: { values: number[] }) => {
+    const rows = 7; const cols = 5; // weekdays x recent weeks
+    const days = rows * cols;
+    const arr = values.slice(-days);
+    const valsBack = arr.slice().reverse(); // [today, yesterday, ...]
+    const cells = Array.from({ length: days }, () => 0);
+    for (let n = 0; n < valsBack.length; n++) {
+      const col = cols - 1 - Math.floor(n / 7);
+      if (col < 0) break; // older than the visible window
+      const d = new Date();
+      d.setDate(d.getDate() - n);
+      const row = d.getDay(); // 0=Sun ... 6=Sat
+      const idx = row * cols + col;
+      cells[idx] = valsBack[n];
+    }
+    const max = Math.max(1, ...cells);
+    return (
+      <div className="grid grid-cols-5 gap-1">
+        {cells.map((v, i) => {
+          const intensity = v === 0 ? 0 : (0.3 + 0.7 * (v / max));
+          const bg = `rgba(16,185,129,${intensity})`;
+          return <div key={i} className="w-6 h-6 rounded-[4px] border border-white/10" style={{ backgroundColor: v ? bg : 'rgba(255,255,255,0.05)' }} />;
+        })}
+      </div>
+    );
+  };
+
+  // Formatting helpers
+  const fmtNumber = (n: number) => n.toLocaleString();
+  const fmtMoney = (n: number) => `$${Math.round(n).toLocaleString()}`;
+  const summary = (arr: number[]) => {
+    const total = arr.reduce((a,b)=>a+b,0);
+    const avg = arr.length ? total/arr.length : 0;
+    const last = arr.length ? arr[arr.length-1] : 0;
+    return { total, avg, last };
+  };
+
+  // UI primitives
+  const Card = ({ children, className = '' }: { children: any; className?: string }) => (
+    <div className={`bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md ${className}`}>{children}</div>
+  );
+
+  const StatCard = ({
+    title,
+    value,
+    hint,
+    gradient,
+  }: {
+    title: string;
+    value: string;
+    hint?: string;
+    gradient?: string;
+  }) => (
+    <div className={`relative overflow-hidden rounded-2xl p-6 border border-white/10 ${gradient || 'bg-gradient-to-br from-white/5 to-white/5'} backdrop-blur-md`}>
+      <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-white/10 blur-2xl" />
+      <div className="text-white/70 text-xs font-semibold mb-1">{title}</div>
+      <div className="text-4xl font-extrabold text-white">{value}</div>
+      {hint && <div className="text-xs text-white/60 mt-2">{hint}</div>}
+    </div>
+  );
+
+  // Derived fun dashboard metrics from the last 30 days
+  const derived = (() => {
+    if (!series) return null;
+    const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
+    const last = (arr: number[]) => (arr.length ? arr[arr.length - 1] : 0);
+    const totalSkips30 = sum(series.skips);
+    const totalMoney30 = sum(series.money);
+    const totalCalories30 = sum(series.calories);
+    // streak = consecutive trailing days with at least one skip
+    let streak = 0;
+    for (let i = series.skips.length - 1; i >= 0; i--) {
+      if (series.skips[i] > 0) streak++;
+      else break;
+    }
+    const todaySkips = last(series.skips);
+    const avgSkips = series.skips.length ? totalSkips30 / series.skips.length : 0;
+    const deltaSkips = todaySkips - avgSkips;
+    // weekday distribution from events
+    const weekdayCounts = [0,0,0,0,0,0,0];
+    events.forEach(e => { const d = new Date(e.date+'T00:00:00'); weekdayCounts[d.getDay()]++; });
+    const daysWithSkip = series.skips.filter(s => s > 0).length;
+    const consistency = series.skips.length ? Math.round((daysWithSkip / series.skips.length) * 100) : 0;
+    return { totalSkips30, totalMoney30, totalCalories30, streak, todaySkips, avgSkips, deltaSkips, weekdayCounts, consistency };
+  })();
+
+  // Lightweight confetti (no deps)
+  useEffect(() => {
+    if (!derived) return;
+    if (derived.streak > bestStreak) {
+      setBestStreak(derived.streak);
+      const canvas = confettiRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const w = canvas.width = window.innerWidth;
+      const h = canvas.height = 300;
+      const particles = Array.from({ length: 120 }).map(() => ({
+        x: Math.random() * w,
+        y: -20 - Math.random() * 80,
+        r: 2 + Math.random() * 3,
+        c: ['#10b981','#34d399','#f59e0b','#60a5fa','#f472b6'][Math.floor(Math.random()*5)],
+        vy: 2 + Math.random() * 2,
+        vx: -1 + Math.random() * 2,
+        life: 0
+      }));
+      let frame = 0;
+      const animate = () => {
+        frame++;
+        ctx.clearRect(0,0,w,h);
+        particles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.02;
+          p.life++;
+          ctx.fillStyle = p.c;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+          ctx.fill();
+        });
+        if (frame < 120) requestAnimationFrame(animate); else ctx.clearRect(0,0,w,h);
+      };
+      animate();
+      setTimeout(() => {
+        const ctx2 = canvas.getContext('2d');
+        if (ctx2) ctx2.clearRect(0,0,canvas.width,canvas.height);
+      }, 3000);
+    }
+  }, [derived?.streak]);
+
+  // (moved to top-level) useCountUp + AnimatedNumber
+
+  const handleSkipClick = () => {
+    if (isAuthed) {
+      setIsSkipDrinkModalOpen(true);
+    } else {
+      setIsAuthModalOpen(true);
+    }
+  };
+
+  const handleSignOut = async () => {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+  };
+
+  const handleShare = async () => {
+    if (!series) return;
+    const totalMoney = Math.round(series.money.reduce((a,b)=>a+b,0));
+    const totalCalories = Math.round(series.calories.reduce((a,b)=>a+b,0));
+    const message = `My sober wins: ${derived?.streak ?? 0} day streak, $${totalMoney} saved, ${totalCalories.toLocaleString()} calories avoided. #SoberWins`;
+    try {
+      if ((navigator as any).share) {
+        await (navigator as any).share({ title: 'SoberWins', text: message, url: window.location.origin });
+      } else {
+        await navigator.clipboard.writeText(message);
+        setShareNote('Copied your progress to clipboard');
+        setTimeout(()=>setShareNote(null), 2500);
+      }
+    } catch {}
+  };
 
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
       <section className="relative min-h-screen overflow-hidden">
-        {/* Background Image with Enhanced Styling */}
+        {/* Background */}
+        {!isAuthed ? (
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-105"
-          style={{
-            backgroundImage: 'url("/hero_image.jpg")'
-          }}
+            style={{ backgroundImage: 'url("/hero_image.jpg")' }}
         >
-          {/* Sophisticated Gradient Overlay */}
           <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent"></div>
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30"></div>
         </div>
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 overflow-hidden">
+            {/* Ambient animated orbs */}
+            <div className="orb" style={{ top: '-40px', left: '-60px', width: '320px', height: '320px', background: 'radial-gradient(circle at 30% 30%, rgba(16,185,129,0.6), rgba(16,185,129,0))' }} />
+            <div className="orb" style={{ bottom: '80px', right: '-40px', width: '360px', height: '360px', background: 'radial-gradient(circle at 70% 70%, rgba(59,130,246,0.5), rgba(59,130,246,0))', animationDelay: '2s' }} />
+            <div className="orb" style={{ bottom: '-60px', left: '30%', width: '280px', height: '280px', background: 'radial-gradient(circle at 50% 50%, rgba(20,184,166,0.4), rgba(20,184,166,0))', animationDelay: '4s' }} />
+          </div>
+        )}
 
         {/* Top Bar - Single Container for Logo and Badge (All Screens) */}
         <div className="absolute top-8 inset-x-0 z-30">
-          <div className="max-w-7xl mx-auto px-6 lg:px-12 flex items-center justify-between">
-            {/* Status Badge */}
+          <div className="max-w-[1440px] mx-auto px-6 lg:px-12 flex items-center justify-between">
+            {/* Status / Auth Controls */}
+            <div className="inline-flex items-center gap-3">
             <div className="inline-flex items-center gap-3 px-6 py-3 bg-emerald-500/20 border border-emerald-400/40 rounded-2xl text-emerald-300 text-base font-semibold backdrop-blur-md shadow-lg">
               <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse shadow-lg shadow-emerald-400/50"></div>
-              <span>Day 3 Sober</span>
+                <span>{isAuthed ? 'Signed in' : 'Guest'}</span>
+              </div>
+              {!isAuthed ? (
+                <button
+                  onClick={() => setIsAuthModalOpen(true)}
+                  className="px-4 py-2 text-sm font-semibold text-white/90 border border-white/20 rounded-xl hover:bg-white/10"
+                >
+                  Sign in
+                </button>
+              ) : (
+                <button
+                  onClick={handleSignOut}
+                  className="px-4 py-2 text-sm font-semibold text-white/90 border border-white/20 rounded-xl hover:bg-white/10"
+                >
+                  Sign out
+                </button>
+              )}
             </div>
             
             {/* Logo */}
@@ -52,25 +465,53 @@ function App() {
 
         {/* Main Content */}
         <div className="relative z-20 min-h-screen flex items-center pt-28 lg:pt-32">
-          <div className="max-w-7xl mx-auto px-6 lg:px-12 w-full">
-            <div className="max-w-2xl">
+          <div className="max-w-[1440px] mx-auto px-6 lg:px-12 w-full">
+            {shareNote && (
+              <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-white/10 text-white border border-white/20 rounded-xl px-4 py-2 backdrop-blur-md shadow-lg">
+                {shareNote}
+              </div>
+            )}
+            {isAuthed && (
+              <canvas ref={confettiRef} className="pointer-events-none absolute left-0 right-0 mx-auto top-24 w-full h-[300px]" />
+            )}
+            <div className={isAuthed ? "w-full" : "max-w-2xl"}>
 
               
 
-              {/* Main Headline */}
+              {/* Main Headline (hidden when signed in) */}
+              {!isAuthed && (
               <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white mb-8 leading-[0.9] tracking-tight mt-32 sm:mt-0">
                 Your first sober win{' '}
                 <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">
                   starts here
                 </span>
               </h1>
+              )}
               
-              {/* Subheadline */}
+              {!isAuthed ? (
               <p className="text-2xl lg:text-3xl text-gray-200 mb-12 leading-relaxed font-light">
                 Soon you'll be able to track your own sober wins. Every skip adds up: calories avoided, money saved, energy regained.
               </p>
+              ) : (
+                <div className="mb-10 flex flex-wrap items-center gap-4">
+                  <div className="relative inline-block">
+                    <div className="absolute -inset-3 rounded-[28px] bg-gradient-to-r from-emerald-400/40 via-teal-400/40 to-cyan-400/40 blur-3xl opacity-80 transition" />
+                    <button 
+                      onClick={handleSkipClick}
+                      className="relative w-full md:w-auto group inline-flex items-center justify-center gap-5 px-14 py-8 text-3xl font-black tracking-tight text-black bg-gradient-to-r from-emerald-400 to-teal-400 rounded-3xl transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl hover:shadow-emerald-400/40 focus:outline-none focus:ring-8 focus:ring-emerald-400/30 shadow-xl"
+                    >
+                      <span>Skip a Drink</span>
+                      <ArrowRight className="w-8 h-8 transition-transform group-hover:translate-x-1" />
+                    </button>
+                  </div>
+                  <button onClick={handleShare} className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl border border-white/15 text-white/80 bg-white/5 hover:bg-white/10 backdrop-blur-md transition shadow-md">
+                    <Share2 className="w-5 h-5" />
+                    Share Progress
+                  </button>
+                </div>
+              )}
               
-              {/* Enhanced Key Reasons */}
+              {!isAuthed && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
                 <div className="flex items-center gap-4 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl px-6 py-4 hover:bg-white/15 transition-all duration-300 group">
                   <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-pink-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -102,24 +543,75 @@ function App() {
                   </div>
                 </div>
               </div>
+              )}
+
+              {isAuthed && series && derived && (
+                <>
+                  {/* Premium clean layout */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+                    <StatCard title="Current Streak" value={`${derived.streak} days`} hint={derived.deltaSkips >= 0 ? 'You’re on a roll' : 'Build momentum today'} gradient="bg-gradient-to-br from-emerald-500/15 to-teal-500/15" />
+                    <StatCard title="Money Saved (30d)" value={`$${Math.round(derived.totalMoney30)}`} hint="Treat yourself to something good" gradient="bg-gradient-to-br from-yellow-500/15 to-orange-500/15" />
+                    <StatCard title="Calories Avoided (30d)" value={`${derived.totalCalories30.toLocaleString()}`} hint="Light body, clear mind" gradient="bg-gradient-to-br from-rose-500/15 to-pink-500/15" />
+                    <StatCard title="Skips (30d)" value={`${derived.totalSkips30}`} hint={`Avg ${Math.max(0, Math.round((derived.avgSkips)*10)/10)}/day`} gradient="bg-gradient-to-br from-blue-500/15 to-indigo-500/15" />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+                    <Card>
+                      <div className="text-white font-semibold mb-1">Calories per skip (30d)</div>
+                      <div className="text-white/60 text-xs mb-2">Skips {events.length} • Avg {Math.round(summary(events.map(e=>e.calories)).avg)}</div>
+                      <Sparkline values={events.map(e=>e.calories)} format={fmtNumber} avg={summary(events.map(e=>e.calories)).avg} />
+                    </Card>
+                    <Card>
+                      <div className="text-white font-semibold mb-1">Money per skip (30d)</div>
+                      <div className="text-white/60 text-xs mb-2">Skips {events.length} • Avg {fmtMoney(summary(events.map(e=>e.money)).avg)}</div>
+                      <Bars values={events.map(e=>e.money)} format={fmtMoney} avg={summary(events.map(e=>e.money)).avg} />
+                    </Card>
+                    <Card>
+                      <div className="text-white font-semibold mb-1">Streak Calendar</div>
+                      <div className="text-white/60 text-xs mb-2">Celebrate every proud sober day</div>
+                      <Heatmap30 values={series.skips} />
+                    </Card>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-20">
+                    <Card>
+                      <div className="text-white font-semibold mb-3">When do you win most?</div>
+                      <Donut label="7d" segments={[
+                        { name: 'Sun', value: derived.weekdayCounts[0], color: '#f87171' },
+                        { name: 'Mon', value: derived.weekdayCounts[1], color: '#f59e0b' },
+                        { name: 'Tue', value: derived.weekdayCounts[2], color: '#10b981' },
+                        { name: 'Wed', value: derived.weekdayCounts[3], color: '#60a5fa' },
+                        { name: 'Thu', value: derived.weekdayCounts[4], color: '#a78bfa' },
+                        { name: 'Fri', value: derived.weekdayCounts[5], color: '#f472b6' },
+                        { name: 'Sat', value: derived.weekdayCounts[6], color: '#22d3ee' },
+                      ]} />
+                    </Card>
+                    <Card>
+                      <div className="text-white font-semibold mb-3">Each skip (size = calories)</div>
+                      <BubbleTimeline data={events.map(e => ({ value: e.calories, money: e.money }))} />
+                      <div className="text-xs text-gray-400 mt-2">Blue = higher $ saved • Green = lower $</div>
+                    </Card>
+                    <Card>
+                      <div className="text-white font-semibold mb-3">Consistency (30d)</div>
+                      <Donut label={`${derived.consistency}%`} segments={[
+                        { name: 'Days with a win', value: derived.consistency, color: '#10b981' },
+                        { name: 'Days to fill', value: 100 - derived.consistency, color: '#1f2937' },
+                      ]} />
+                    </Card>
+                  </div>
+                </>
+              )}
               
-              {/* CTA Buttons */}
+              {!isAuthed && (
               <div className="flex flex-col sm:flex-row gap-6 mb-10">
-                <button 
-                  onClick={() => setIsSkipDrinkModalOpen(true)}
-                  className="group relative inline-flex items-center justify-center gap-4 px-10 py-5 text-xl font-bold text-black bg-gradient-to-r from-emerald-400 to-teal-400 rounded-2xl transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-emerald-400/40 focus:outline-none focus:ring-4 focus:ring-emerald-400/50 shadow-xl min-w-[220px]"
-                >
-                  <span>Skip a Drink</span>
-                  <ArrowRight className="w-6 h-6 transition-transform group-hover:translate-x-1" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-300 to-teal-300 rounded-2xl opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
-                </button>
-                
-                <button onClick={() => setIsEarlyAccessOpen(true)} className="group inline-flex items-center justify-center gap-3 px-10 py-5 text-xl font-semibold text-white border-2 border-white/30 rounded-2xl transition-all duration-300 hover:border-white hover:bg-white/10 backdrop-blur-md min-w-[220px]">
-                  <span>Get Early Access</span>
+                  <button onClick={() => setIsAuthModalOpen(true)} className="group inline-flex items-center justify-center gap-3 px-10 py-5 text-xl font-semibold text-white border-2 border-white/30 rounded-2xl transition-all duration-300 hover:border-white hover:bg-white/10 backdrop-blur-md min-w-[220px]">
+                    <span>Sign in</span>
                 </button>
               </div>
+              )}
               
-              {/* Bottom Text */}
+              {/* Bottom Text (hidden when signed in) */}
+              {!isAuthed && (
               <div className="space-y-3">
                 <p className="text-xl text-gray-200 font-medium">
                   Be among the first to join the sober wins movement
@@ -131,6 +623,7 @@ function App() {
                   *Based on average beer/cocktail calories & prices
                 </p>
               </div>
+              )}
               
             </div>
           </div>
@@ -140,7 +633,7 @@ function App() {
         <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-gray-900 via-gray-900/50 to-transparent pointer-events-none"></div>
       </section>
       
-      {/* Psychology Section */}
+      {!isAuthed && (
       <section className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-24 overflow-hidden">
         {/* Subtle Background Pattern */}
         <div className="absolute inset-0 opacity-5">
@@ -227,8 +720,9 @@ function App() {
           </div>
         </div>
       </section>
+      )}
 
-      {/* Features Section */}
+      {!isAuthed && (
       <section className="bg-gray-900 py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
@@ -343,35 +837,25 @@ function App() {
           </div>
         </div>
       </section>
+      )}
       
       {/* Skip Drink Modal */}
       <SkipDrinkModal 
         isOpen={isSkipDrinkModalOpen} 
         onClose={() => setIsSkipDrinkModalOpen(false)} 
+        onRequestSignIn={() => setIsAuthModalOpen(true)}
+        isAuthed={isAuthed}
+        onSaved={() => fetchSeries()}
       />
 
-      {/* Early Access Modal */}
-      <EarlyAccessModal isOpen={isEarlyAccessOpen} onClose={() => setIsEarlyAccessOpen(false)} />
+      {/* Auth Modal */}
+      <AuthModal 
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSignedIn={() => setIsAuthed(true)}
+      />
+
       
-      {/* Additional Content Section (for demo purposes) */}
-      <section className="bg-gray-900 py-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold text-white mb-6">
-            Be first to track your sober wins
-          </h2>
-          <p className="text-xl text-gray-300 mb-8">
-            Join the waitlist and be among the first to experience the power of tracking your progress.
-          </p>
-          
-          <button onClick={() => setIsEarlyAccessOpen(true)} className="group relative inline-flex items-center justify-center gap-3 px-12 py-6 text-xl font-bold text-black bg-gradient-to-r from-green-400 to-emerald-400 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-green-400/40 focus:outline-none focus:ring-4 focus:ring-green-400/50 shadow-lg">
-            <span>Get Early Access</span>
-            <ArrowRight className="w-6 h-6 transition-transform group-hover:translate-x-1" />
-            
-            {/* Hover Glow Effect */}
-            <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full opacity-0 group-hover:opacity-30 transition-opacity duration-300 blur-xl"></div>
-          </button>
-        </div>
-      </section>
     </div>
   );
 }

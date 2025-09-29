@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Plus, Minus, ArrowRight, CheckCircle, Mail, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState } from 'react';
+import { X, Plus, Minus, ArrowRight, CheckCircle, ChevronDown, ChevronUp, LogIn } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 interface Drink {
@@ -23,6 +23,9 @@ interface Snack {
 interface SkipDrinkModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onRequestSignIn?: () => void;
+  isAuthed?: boolean;
+  onSaved?: () => void;
 }
 
 const drinks: Drink[] = [
@@ -67,16 +70,16 @@ const snacks: Snack[] = [
   { id: 'milkshake', name: 'Milkshake', emoji: '🥤', calories: 400, price: 7, category: 'extras' },
 ];
 
-export default function SkipDrinkModal({ isOpen, onClose }: SkipDrinkModalProps) {
+export default function SkipDrinkModal({ isOpen, onClose, onRequestSignIn, isAuthed, onSaved }: SkipDrinkModalProps) {
   const [step, setStep] = useState(1);
   const [selectedDrinks, setSelectedDrinks] = useState<Record<string, number>>({});
   const [selectedSnacks, setSelectedSnacks] = useState<Record<string, number>>({});
-  const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showMoreDrinks, setShowMoreDrinks] = useState(false);
   const [showMoreSnacks, setShowMoreSnacks] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  
 
   if (!isOpen) return null;
 
@@ -135,22 +138,32 @@ export default function SkipDrinkModal({ isOpen, onClose }: SkipDrinkModalProps)
     };
   };
 
-  const handleEmailSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-    setSubmitting(true);
-    setSubmitError(null);
+  const handleSignInPrompt = () => {
+    onRequestSignIn?.();
+  };
+
+  const handleSaveWin = async () => {
     try {
-      if (!supabase) {
-        throw new Error('Database not configured');
-      }
-      const { error } = await supabase.from('early_access_leads').insert({ email });
+      setIsSaving(true);
+      setSaveError(null);
+      if (!supabase) throw new Error('Database not configured');
+      const details = {
+        drinks: selectedDrinks,
+        snacks: selectedSnacks,
+      };
+      const totals = calculateTotals();
+      const { error } = await supabase.from('skip_events').insert({
+        total_calories: totals.totalCalories,
+        total_money: totals.totalPrice,
+        details,
+      });
       if (error) throw error;
       setIsSubmitted(true);
-    } catch (err: any) {
-      setSubmitError(err?.message || 'Something went wrong. Please try again.');
+      onSaved?.();
+    } catch (e: any) {
+      setSaveError(e?.message || 'Failed to save');
     } finally {
-      setSubmitting(false);
+      setIsSaving(false);
     }
   };
 
@@ -158,7 +171,7 @@ export default function SkipDrinkModal({ isOpen, onClose }: SkipDrinkModalProps)
     setStep(1);
     setSelectedDrinks({});
     setSelectedSnacks({});
-    setEmail('');
+    
     setIsSubmitted(false);
     setShowMoreDrinks(false);
     setShowMoreSnacks(false);
@@ -183,8 +196,7 @@ export default function SkipDrinkModal({ isOpen, onClose }: SkipDrinkModalProps)
   const renderItemGrid = (
     items: (Drink | Snack)[],
     selectedItems: Record<string, number>,
-    updateQuantity: (id: string, change: number) => void,
-    isDrink: boolean = true
+    updateQuantity: (id: string, change: number) => void
   ) => (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {items.map((item) => (
@@ -251,7 +263,7 @@ export default function SkipDrinkModal({ isOpen, onClose }: SkipDrinkModalProps)
           <div className="p-6">
             <p className="text-gray-300 mb-6">Select the drinks you're choosing to skip today:</p>
             
-            {renderItemGrid(visibleDrinks, selectedDrinks, updateDrinkQuantity, true)}
+            {renderItemGrid(visibleDrinks, selectedDrinks, updateDrinkQuantity)}
             
             {/* Show More/Less Button */}
             {!showMoreDrinks && popularDrinks.length > 0 && (
@@ -290,7 +302,7 @@ export default function SkipDrinkModal({ isOpen, onClose }: SkipDrinkModalProps)
           <div className="p-6">
             <p className="text-gray-300 mb-6">Often drinks come with snacks. Skip those too?</p>
             
-            {renderItemGrid(visibleSnacks, selectedSnacks, updateSnackQuantity, false)}
+            {renderItemGrid(visibleSnacks, selectedSnacks, updateSnackQuantity)}
             
             {/* Show More/Less Button */}
             {!showMoreSnacks && otherSnacks.length > 0 && (
@@ -539,45 +551,32 @@ export default function SkipDrinkModal({ isOpen, onClose }: SkipDrinkModalProps)
               <div className="text-center mt-4">
                 <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/20 border border-blue-400/30 rounded-full text-blue-300 text-xs font-medium">
                   <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></div>
-                  Unlock these features when you join
+                  {isAuthed ? 'More insights coming soon' : 'Sign in to unlock these features'}
                 </div>
               </div>
             </div>
-
-            <form onSubmit={handleEmailSubmit} className="space-y-4">
-              <div>
-                <label className="block text-white font-semibold mb-2">
-                  Want to track more wins like this? Join our early access:
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email"
-                    className="w-full bg-gray-800 border border-gray-600 rounded-xl py-4 pl-12 pr-4 text-white placeholder-gray-400 focus:border-green-500 focus:outline-none"
-                    required
-                  />
-                </div>
-              </div>
-              
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-4 px-6 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 disabled:opacity-60"
-              >
-                {submitting ? 'Submitting…' : 'Get Early Access'}
-              </button>
-            </form>
-
-            {submitError && (
-              <p className="text-red-400 text-sm mt-3">{submitError}</p>
-            )}
-
-            <p className="text-gray-400 text-sm text-center mt-4">
-              Free to join • No spam • Launching soon
-            </p>
+            <div className="mt-6">
+              {!isAuthed ? (
+                <button
+                  onClick={handleSignInPrompt}
+                  className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-4 px-6 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 flex items-center justify-center gap-2"
+                >
+                  <LogIn className="w-5 h-5" />
+                  Sign in to save this win
+                </button>
+              ) : (
+                <button
+                  onClick={handleSaveWin}
+                  disabled={isSaving}
+                  className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-4 px-6 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 disabled:opacity-60"
+                >
+                  {isSaving ? 'Saving…' : 'Save my win'}
+                </button>
+              )}
+              {saveError && (
+                <p className="text-red-400 text-sm mt-3">{saveError}</p>
+              )}
+            </div>
           </div>
         )}
 
@@ -587,10 +586,8 @@ export default function SkipDrinkModal({ isOpen, onClose }: SkipDrinkModalProps)
             <div className="w-20 h-20 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="w-10 h-10 text-white" />
             </div>
-            <h3 className="text-2xl font-bold text-white mb-4">You're In! 🎉</h3>
-            <p className="text-gray-300 mb-6">
-              Thanks for joining the sober wins movement. We'll notify you as soon as the app launches!
-            </p>
+            <h3 className="text-2xl font-bold text-white mb-4">Win saved! 🎉</h3>
+            <p className="text-gray-300 mb-6">Great job. Keep building your streak.</p>
             <div className="bg-gray-800 border border-gray-600 rounded-xl p-4 mb-6">
               <p className="text-green-400 font-semibold">Today's Win Recap:</p>
               <p className="text-white text-lg">
