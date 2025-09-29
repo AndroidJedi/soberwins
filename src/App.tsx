@@ -44,6 +44,8 @@ function App() {
     money: number[];
   } | null>(null);
   const [events, setEvents] = useState<Array<{ date: string; calories: number; money: number }>>([]);
+  const [topDrinks, setTopDrinks] = useState<Array<{ id: string; count: number }>>([]);
+  const [topSnacks, setTopSnacks] = useState<Array<{ id: string; count: number }>>([]);
   const [bestStreak, setBestStreak] = useState(0);
   const [shareNote, setShareNote] = useState<string | null>(null);
   const confettiRef = useRef<HTMLCanvasElement | null>(null);
@@ -73,7 +75,7 @@ function App() {
     const fromIso = from.toISOString();
     const { data, error } = await supabase
       .from('skip_events')
-      .select('occurred_at,total_calories,total_money')
+      .select('occurred_at,total_calories,total_money,details')
       .gte('occurred_at', fromIso)
       .order('occurred_at', { ascending: true });
     if (error) return;
@@ -87,7 +89,7 @@ function App() {
       d.setDate(from.getDate() + i);
       buckets.set(dateKey(d), { skips: 0, calories: 0, money: 0 });
     }
-    const raw: Array<{ occurred_at: string; total_calories: number; total_money: number }> = (data || []) as any;
+    const raw: Array<{ occurred_at: string; total_calories: number; total_money: number; details?: any }> = (data || []) as any;
     raw.forEach((row) => {
       const d = new Date(row.occurred_at);
       const k = dateKey(d);
@@ -104,6 +106,28 @@ function App() {
     const money = dates.map((k) => buckets.get(k)!.money);
     setSeries({ dates, skips, calories, money });
     setEvents(raw.map(r => ({ date: new Date(r.occurred_at).toISOString().slice(0,10), calories: r.total_calories || 0, money: Number(r.total_money || 0) })));
+
+    // Aggregate item counts from details
+    const drinkCounts: Record<string, number> = {};
+    const snackCounts: Record<string, number> = {};
+    raw.forEach(r => {
+      const det = r.details || {};
+      const d = det.drinks || {};
+      const s = det.snacks || {};
+      Object.entries(d).forEach(([id, qty]) => {
+        const q = Number(qty as any) || 0;
+        drinkCounts[id] = (drinkCounts[id] || 0) + q;
+      });
+      Object.entries(s).forEach(([id, qty]) => {
+        const q = Number(qty as any) || 0;
+        snackCounts[id] = (snackCounts[id] || 0) + q;
+      });
+    });
+    const toSorted = (obj: Record<string, number>) => Object.entries(obj)
+      .sort((a,b)=>b[1]-a[1])
+      .map(([id,count])=>({ id, count }));
+    setTopDrinks(toSorted(drinkCounts));
+    setTopSnacks(toSorted(snackCounts));
   };
 
   useEffect(() => {
@@ -115,33 +139,47 @@ function App() {
     const h = 60;
     const m = 6;
     const max = Math.max(1, ...values);
-    const pts = values.map((v, i) => {
-      const x = m + (i * (w - m * 2)) / Math.max(1, values.length - 1);
-      const y = h - m - (v / max) * (h - m * 2);
-      return `${x},${y}`;
-    }).join(' ');
-    const last = values[values.length - 1] ?? 0;
-    const lastX = m + ((values.length - 1) * (w - m * 2)) / Math.max(1, values.length - 1);
-    const lastY = h - m - (last / max) * (h - m * 2);
+    const min = Math.min(...values);
+    const count = values.length;
+    const denom = Math.max(1, count - 1);
+    const compact = count < 7;
+    const step = count <= 3 ? 60 : 28; // wider spacing for very few points
+    const contentWidth = compact ? (count - 1) * step : (w - m * 2);
+    const startX = compact ? (w - contentWidth) / 2 : m;
+    const toX = (i: number) => count === 1 ? w / 2 : startX + (i * contentWidth) / denom;
+    const range = Math.max(1, max - min);
+    const rMax = 8; // expected max radius
+    const pad = m + rMax; // keep circles inside chart bounds
+    const toY = (v: number) => h - pad - ((v - min) / range) * (h - pad * 2);
+    const last = values[count - 1] ?? 0;
+    const lastX = toX(count - 1);
+    const lastY = toY(last);
     return (
       <svg width="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
-        {/* gridlines */}
-        {[0.25,0.5,0.75].map((g, i)=> (
-          <line key={i} x1={m} y1={h - m - g*(h - m*2)} x2={w - m} y2={h - m - g*(h - m*2)} stroke="rgba(255,255,255,0.18)" strokeWidth="1" />
-        ))}
-        {/* spark */}
-        <polyline fill="none" stroke={stroke} strokeWidth="3" strokeLinecap="round" points={pts} />
+        {/* points only (no connecting line) */}
         {values.map((v, i) => {
-          const x = m + (i * (w - m * 2)) / Math.max(1, values.length - 1);
-          const y = h - m - (v / max) * (h - m * 2);
+          const x = toX(i);
+          const y = toY(v);
           const isLast = i === values.length - 1;
-          return <circle key={i} cx={x} cy={y} r={isLast ? 3 : 2} fill={stroke} opacity={isLast ? 1 : 0.5} />;
+          const frac = range === 0 ? 0.5 : (v - min) / range;
+          const baseR = 3 + frac * 4; // scale radius by value
+          const r = isLast ? baseR + 1 : baseR;
+          return <circle key={i} cx={x} cy={y} r={r} fill={stroke} opacity={isLast ? 1 : 0.85} />;
         })}
-        {/* y-axis max label */}
-        <text x={m} y={10} fontSize="9" fill="rgba(255,255,255,0.45)">{format ? format(max) : max}</text>
-        {/* last value marker */}
-        <circle cx={lastX} cy={lastY} r={3} fill={stroke} />
-        <text x={Math.min(lastX + 4, w - 30)} y={Math.max(lastY - 4, 10)} fontSize="10" fill={stroke}>
+        {/* second-to-last value label when available */}
+        {count >= 2 && (() => {
+          const idx = count - 2;
+          const v = values[idx] ?? 0;
+          const x = toX(idx);
+          const y = toY(v);
+          return (
+            <text x={Math.min(x + 6, w - 30)} y={Math.max(y - 10, 12)} fontSize="11" fill={stroke} opacity={0.75}>
+              {format ? format(v) : v}
+            </text>
+          );
+        })()}
+        {/* last value marker (label only) */}
+        <text x={Math.min(lastX + 6, w - 30)} y={Math.max(lastY - 10, 12)} fontSize="12" fontWeight="700" fill={stroke}>
           {format ? format(last) : last}
         </text>
       </svg>
@@ -149,23 +187,38 @@ function App() {
   };
 
   const Bars = ({ values, color = '#f59e0b', format, avg }: { values: number[]; color?: string; format?: (n: number) => string; avg?: number }) => {
-    const w = 200; const h = 60; const m = 6;
+    const w = 200; const h = 90; const m = 6;
     const max = Math.max(1, ...values);
-    const barW = (w - m * 2) / Math.max(1, values.length);
+    const count = values.length;
+    const compact = count < 7;
+    const gap = 8;
+    const fixedBarW = 26;
+    const groupWidth = compact ? (count * fixedBarW + Math.max(0, count - 1) * gap) : (w - m * 2);
+    const startX = compact ? (w - groupWidth) / 2 : m;
+    const computedBarW = (w - m * 2) / Math.max(1, count);
+    const barW = compact ? fixedBarW : computedBarW;
+    const topLabelPad = 14; // reserve room for labels above bars
     return (
       <svg width="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
-        {/* gridlines */}
-        {[0.25,0.5,0.75].map((g, i)=> (
-          <line key={i} x1={m} y1={h - m - g*(h - m*2)} x2={w - m} y2={h - m - g*(h - m*2)} stroke="rgba(255,255,255,0.18)" strokeWidth="1" />
-        ))}
         {values.map((v, i) => {
-          const x = m + i * barW;
-          const bh = (v / max) * (h - m * 2);
+          const usableHeight = h - m * 2 - topLabelPad;
+          const bh = (v / max) * usableHeight;
           const y = h - m - bh;
-          return <rect key={i} x={x} y={y} width={Math.max(1, barW - 2)} height={bh} fill={color} rx={2} />;
+          const x = compact
+            ? startX + i * (barW + gap)
+            : m + i * computedBarW;
+          const wBar = Math.max(1, barW - 2);
+          const labelX = x + wBar / 2;
+          const labelY = Math.max(y - 4, 10);
+          return (
+            <g key={i}>
+              <rect x={x} y={y} width={wBar} height={bh} fill={color} rx={4} />
+              <text x={labelX} y={labelY} textAnchor="middle" fontSize="12" fontWeight="700" fill={color}>
+                {format ? format(v) : v}
+              </text>
+            </g>
+          );
         })}
-        {/* y-axis max label */}
-        <text x={m} y={10} fontSize="9" fill="rgba(255,255,255,0.45)">{format ? format(max) : max}</text>
       </svg>
     );
   };
@@ -237,8 +290,8 @@ function App() {
   };
 
   // Heatmap of last 5 weeks (7x5 grid: rows = weekdays)
-  const Heatmap30 = ({ values }: { values: number[] }) => {
-    const rows = 7; const cols = 5; // weekdays x recent weeks
+  const Heatmap30 = ({ values, weeks = 10 }: { values: number[]; weeks?: number }) => {
+    const rows = 7; const cols = Math.max(5, weeks); // weekdays x recent weeks
     const days = rows * cols;
     const arr = values.slice(-days);
     const valsBack = arr.slice().reverse(); // [today, yesterday, ...]
@@ -253,13 +306,21 @@ function App() {
       cells[idx] = valsBack[n];
     }
     const max = Math.max(1, ...cells);
+    const labels = ['S','M','T','W','T','F','S'];
     return (
-      <div className="grid grid-cols-5 gap-1">
-        {cells.map((v, i) => {
-          const intensity = v === 0 ? 0 : (0.3 + 0.7 * (v / max));
-          const bg = `rgba(16,185,129,${intensity})`;
-          return <div key={i} className="w-6 h-6 rounded-[4px] border border-white/10" style={{ backgroundColor: v ? bg : 'rgba(255,255,255,0.05)' }} />;
-        })}
+      <div className="flex items-start gap-2">
+        <div className="flex flex-col gap-1 pt-[2px]">
+          {labels.map((l, i) => (
+            <div key={i} className="w-6 h-6 flex items-center justify-center text-[10px] text-white/50">{l}</div>
+          ))}
+        </div>
+        <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${cols}, 1.5rem)` }}>
+          {cells.map((v, i) => {
+            const intensity = v === 0 ? 0 : (0.3 + 0.7 * (v / max));
+            const bg = `rgba(16,185,129,${intensity})`;
+            return <div key={i} className="w-6 h-6 rounded-[4px] border border-white/10" style={{ backgroundColor: v ? bg : 'rgba(255,255,255,0.05)' }} />;
+          })}
+        </div>
       </div>
     );
   };
@@ -272,6 +333,18 @@ function App() {
     const avg = arr.length ? total/arr.length : 0;
     const last = arr.length ? arr[arr.length-1] : 0;
     return { total, avg, last };
+  };
+
+  // Friendly names for items recorded in details
+  const itemName: Record<string, string> = {
+    // Drinks
+    beer: 'Beer', wine: 'Wine Glass', whiskey: 'Whiskey', vodka: 'Vodka Shot', cocktail: 'Cocktail', margarita: 'Margarita',
+    cider: 'Cider', 'hard-seltzer': 'Hard Seltzer', tequila: 'Tequila Shot', 'gin-tonic': 'Gin & Tonic', 'rum-coke': 'Rum & Coke',
+    champagne: 'Champagne', sangria: 'Sangria', 'long-island': 'Long Island Tea',
+    // Snacks
+    chips: 'Chips', nuts: 'Mixed Nuts', pizza: 'Pizza Slice', wings: 'Chicken Wings', nachos: 'Nachos', pretzels: 'Pretzels',
+    fries: 'French Fries', burger: 'Burger', 'onion-rings': 'Onion Rings', 'hot-dog': 'Hot Dog',
+    'cheese-platter': 'Cheese Platter', 'ice-cream': 'Ice Cream', chocolate: 'Chocolate Bar', milkshake: 'Milkshake'
   };
 
   // UI primitives
@@ -420,15 +493,30 @@ function App() {
           </div>
         )}
 
-        {/* Top Bar - Single Container for Logo and Badge (All Screens) */}
+        {/* Top Bar */}
         <div className="absolute top-8 inset-x-0 z-30">
           <div className="max-w-[1440px] mx-auto px-6 lg:px-12 flex items-center justify-between">
-            {/* Status / Auth Controls */}
-            <div className="inline-flex items-center gap-3">
-            <div className="inline-flex items-center gap-3 px-6 py-3 bg-emerald-500/20 border border-emerald-400/40 rounded-2xl text-emerald-300 text-base font-semibold backdrop-blur-md shadow-lg">
-              <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse shadow-lg shadow-emerald-400/50"></div>
-                <span>{isAuthed ? 'Signed in' : 'Guest'}</span>
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center shadow-lg">
+                <div className="w-5 h-5 bg-white rounded-lg flex items-center justify-center">
+                  <div className="w-2 h-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full"></div>
+                </div>
               </div>
+              <div className="text-white">
+                <div className="text-xl font-bold tracking-tight">SoberWins</div>
+                <div className="text-emerald-300 text-xs font-medium -mt-0.5">Track your sober wins</div>
+              </div>
+            </div>
+
+            {/* Right Controls */}
+            <div className="inline-flex items-center gap-3">
+              {isAuthed && (
+                <button onClick={handleShare} className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl border border-white/15 text-white/80 bg-white/5 hover:bg-white/10 backdrop-blur-md transition shadow-md">
+                  <Share2 className="w-5 h-5" />
+                  Share Progress
+                </button>
+              )}
               {!isAuthed ? (
                 <button
                   onClick={() => setIsAuthModalOpen(true)}
@@ -444,19 +532,6 @@ function App() {
                   Sign out
                 </button>
               )}
-            </div>
-            
-            {/* Logo */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center shadow-lg">
-                <div className="w-5 h-5 bg-white rounded-lg flex items-center justify-center">
-                  <div className="w-2 h-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full"></div>
-                </div>
-              </div>
-              <div className="text-white">
-                <div className="text-xl font-bold tracking-tight">SoberWins</div>
-                <div className="text-emerald-300 text-xs font-medium -mt-0.5">Track your sober wins</div>
-              </div>
             </div>
           </div>
         </div>
@@ -494,20 +569,16 @@ function App() {
               </p>
               ) : (
                 <div className="mb-10 flex flex-wrap items-center gap-4">
-                  <div className="relative inline-block">
+                  <div className="relative w-full">
                     <div className="absolute -inset-3 rounded-[28px] bg-gradient-to-r from-emerald-400/40 via-teal-400/40 to-cyan-400/40 blur-3xl opacity-80 transition" />
                     <button 
                       onClick={handleSkipClick}
-                      className="relative w-full md:w-auto group inline-flex items-center justify-center gap-5 px-14 py-8 text-3xl font-black tracking-tight text-black bg-gradient-to-r from-emerald-400 to-teal-400 rounded-3xl transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl hover:shadow-emerald-400/40 focus:outline-none focus:ring-8 focus:ring-emerald-400/30 shadow-xl"
+                      className="relative w-full group inline-flex items-center justify-center gap-5 px-14 py-8 text-3xl font-black tracking-tight text-black bg-gradient-to-r from-emerald-400 to-teal-400 rounded-3xl transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl hover:shadow-emerald-400/40 focus:outline-none focus:ring-8 focus:ring-emerald-400/30 shadow-xl"
                     >
                       <span>Skip a Drink</span>
                       <ArrowRight className="w-8 h-8 transition-transform group-hover:translate-x-1" />
                     </button>
                   </div>
-                  <button onClick={handleShare} className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl border border-white/15 text-white/80 bg-white/5 hover:bg-white/10 backdrop-blur-md transition shadow-md">
-                    <Share2 className="w-5 h-5" />
-                    Share Progress
-                  </button>
                 </div>
               )}
               
@@ -569,7 +640,7 @@ function App() {
                     <Card>
                       <div className="text-white font-semibold mb-1">Streak Calendar</div>
                       <div className="text-white/60 text-xs mb-2">Celebrate every proud sober day</div>
-                      <Heatmap30 values={series.skips} />
+                      <Heatmap30 values={series.skips} weeks={12} />
                     </Card>
                   </div>
 
@@ -597,6 +668,34 @@ function App() {
                         { name: 'Days with a win', value: derived.consistency, color: '#10b981' },
                         { name: 'Days to fill', value: 100 - derived.consistency, color: '#1f2937' },
                       ]} />
+                    </Card>
+                    <Card>
+                      <div className="text-white font-semibold mb-3">Top drinks skipped</div>
+                      <ul className="space-y-2">
+                        {(topDrinks.slice(0,6)).map((d) => (
+                          <li key={d.id} className="flex justify-between text-white/90">
+                            <span>{itemName[d.id] || d.id}</span>
+                            <span className="text-white/70">× {d.count}</span>
+                          </li>
+                        ))}
+                        {topDrinks.length === 0 && (
+                          <li className="text-white/50">No data yet</li>
+                        )}
+                      </ul>
+                    </Card>
+                    <Card>
+                      <div className="text-white font-semibold mb-3">Top snacks avoided</div>
+                      <ul className="space-y-2">
+                        {(topSnacks.slice(0,6)).map((s) => (
+                          <li key={s.id} className="flex justify-between text-white/90">
+                            <span>{itemName[s.id] || s.id}</span>
+                            <span className="text-white/70">× {s.count}</span>
+                          </li>
+                        ))}
+                        {topSnacks.length === 0 && (
+                          <li className="text-white/50">No data yet</li>
+                        )}
+                      </ul>
                     </Card>
                   </div>
                 </>
