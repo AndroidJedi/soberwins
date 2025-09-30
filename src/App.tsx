@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Zap, DollarSign, Heart, Share2 } from 'lucide-react';
 import SkipDrinkModal from './components/SkipDrinkModal';
 import AuthModal from './components/AuthModal';
+import ResetPasswordModal from './components/ResetPasswordModal';
 import { supabase } from './lib/supabaseClient';
 
 // Count-up helper (custom hook)
@@ -36,6 +37,7 @@ function AnimatedNumber({ value, formatter }: { value: number; formatter?: (n: n
 function App() {
   const [isSkipDrinkModalOpen, setIsSkipDrinkModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [isAuthed, setIsAuthed] = useState(false);
   const [series, setSeries] = useState<{
     dates: string[];
@@ -58,14 +60,32 @@ function App() {
       if (isMounted) setIsAuthed(!!data.session);
     })();
 
-    const { data: sub } = supabase?.auth.onAuthStateChange((_event, session) => {
+    const { data: sub } = supabase?.auth.onAuthStateChange(async (event, session) => {
       setIsAuthed(!!session);
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsResetModalOpen(true);
+      }
     }) || { data: { subscription: { unsubscribe: () => {} } } } as any;
 
     return () => {
       isMounted = false;
       sub?.subscription?.unsubscribe?.();
     };
+  }, []);
+
+  // If user lands on /reset-password with tokens in URL, exchange them for a session
+  useEffect(() => {
+    (async () => {
+      if (!supabase) return;
+      if (window.location.pathname === '/reset-password') {
+        try {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(window.location.href);
+          if (!error) {
+            setIsResetModalOpen(true);
+          }
+        } catch {}
+      }
+    })();
   }, []);
 
   const fetchSeries = async (days: number = 30) => {
@@ -1084,6 +1104,15 @@ function App() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         onSignedIn={() => setIsAuthed(true)}
+      />
+
+      {/* Reset Password Modal */}
+      <ResetPasswordModal
+        isOpen={isResetModalOpen}
+        onClose={() => setIsResetModalOpen(false)}
+        onUpdated={() => {
+          setIsResetModalOpen(false);
+        }}
       />
 
       
