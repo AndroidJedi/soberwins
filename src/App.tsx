@@ -256,6 +256,31 @@ function App() {
     );
   };
 
+  // Ring gauge for single-percentage metrics
+  const Gauge = ({ percent, valueLabel, subLabel }: { percent: number; valueLabel: string; subLabel?: string }) => {
+    const p = Math.max(0, Math.min(100, Math.round(percent)));
+    const size = 140; const r = 56; const cx = size/2; const cy = size/2; const stroke = 12;
+    const circumference = 2 * Math.PI * r;
+    const dash = (p / 100) * circumference;
+    return (
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <defs>
+          <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#34d399" />
+            <stop offset="100%" stopColor="#10b981" />
+          </linearGradient>
+        </defs>
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={stroke} />
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="url(#gaugeGrad)" strokeWidth={stroke} strokeLinecap="round" strokeDasharray={`${dash} ${circumference - dash}`} transform={`rotate(-90 ${cx} ${cy})`} />
+        <text x={cx} y={cy - 2} textAnchor="middle" className="fill-white" fontSize="22" fontWeight={800}>{p}%</text>
+        <text x={cx} y={cy + 18} textAnchor="middle" className="fill-white/70" fontSize="12">{valueLabel}</text>
+        {subLabel && (
+          <text x={cx} y={cy + 34} textAnchor="middle" className="fill-white/50" fontSize="11">{subLabel}</text>
+        )}
+      </svg>
+    );
+  };
+
   // Bubble timeline of per-skip events
   const BubbleTimeline = ({ data }: { data: Array<{ value: number; money: number }> }) => {
     const w = 260; const h = 70; const m = 8;
@@ -286,6 +311,93 @@ function App() {
         <polyline fill="none" stroke={colorA} strokeWidth="3" points={toPts(a)} />
         <polyline fill="none" stroke={colorB} strokeWidth="3" points={toPts(b)} opacity={0.9} />
       </svg>
+    );
+  };
+
+  // Belly timeline (horizontal slices, thicker = more calories avoided)
+  const BellyTimeline = ({ values }: { values: number[] }) => {
+    const w = 260; const h = 120; const padX = 8; const padY = 8;
+    const slices = Math.min(30, values.length);
+    const arr = values.slice(-slices);
+    const maxV = Math.max(1, ...arr);
+    const base = (w - padX * 2) * 0.25; // minimal belly width
+    const extra = (w - padX * 2) * 0.65; // max added width at peak
+    const rowH = (h - padY * 2) / Math.max(1, slices);
+    const toColor = (v: number) => {
+      const t = Math.max(0, Math.min(1, v / maxV));
+      const hue = 160 - 70 * t; // 160->90 (teal→lime)
+      return `hsl(${hue}, 70%, 50%)`;
+    };
+    return (
+      <svg width="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+        {/* subtle backdrop ellipse */}
+        <ellipse cx={w/2} cy={h/2} rx={(w - padX*2)/2} ry={(h - padY*2)/2} fill="rgba(255,255,255,0.03)" />
+        {arr.map((v, i) => {
+          const t = v / maxV;
+          const width = base + extra * t;
+          const x = (w - width) / 2;
+          const y = padY + i * rowH + 1;
+          const r = Math.min(10, rowH / 2);
+          return (
+            <rect key={i} x={x} y={y} width={width} height={Math.max(1, rowH - 2)} rx={r} fill={toColor(v)} opacity={0.95} />
+          );
+        })}
+      </svg>
+    );
+  };
+
+  // Real bell photo with masked fill that grows with calories
+  const BellySlider = ({ values, dates }: { values: number[]; dates: string[] }) => {
+    const [idx, setIdx] = useState(Math.max(0, values.length - 1));
+    const maxV = Math.max(1, ...values);
+    const v = values[idx] || 0;
+    const w = 260; const h = 140;
+    const growth = 1 - Math.exp(-Math.max(0, v) / 1800); // eased 0..~0.42 at 1000 cal
+    const fillPct = Math.min(96, Math.max(10, Math.round(10 + growth * 82))); // 10%..~92%
+    return (
+      <div>
+        <svg width="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+          {(() => {
+            const cx = w / 2; const top = 16; const base = h - 12;
+            const shoulderY = top + 20; const crownY = top + 6; const lipY = base - 6;
+            const widthTop = 46; const widthBody = 118;
+            const leftTop = cx - widthTop / 2; const rightTop = cx + widthTop / 2;
+            const leftLip = cx - widthBody / 2; const rightLip = cx + widthBody / 2;
+            const d = [
+              `M ${leftLip} ${lipY}`,
+              `C ${leftLip - 10} ${lipY - 10}, ${leftTop - 10} ${shoulderY}, ${leftTop} ${crownY}`,
+              `C ${leftTop + 22} ${top}, ${rightTop - 22} ${top}, ${rightTop} ${crownY}`,
+              `C ${rightTop + 10} ${shoulderY}, ${rightLip + 10} ${lipY - 10}, ${rightLip} ${lipY}`,
+              `C ${rightLip - 6} ${base}, ${leftLip + 6} ${base}, ${leftLip} ${lipY}`,
+              'Z'
+            ].join(' ');
+            const clipId = `bellClip-${idx}`;
+            const usable = lipY - top;
+            const y = lipY - (usable * (fillPct / 100));
+            const height = base - y;
+            return (
+              <g>
+                <defs>
+                  <clipPath id={clipId}>
+                    <path d={d} />
+                  </clipPath>
+                </defs>
+                <path d={d} fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth={2.2} />
+                <rect x={leftLip - 12} y={y} width={rightLip - leftLip + 24} height={height} fill="#ef4444" opacity={0.9} clipPath={`url(#${clipId})`} rx={10} />
+              </g>
+            );
+          })()}
+        </svg>
+        <input
+          aria-label="belly-scrubber"
+          type="range"
+          min={0}
+          max={Math.max(0, values.length - 1)}
+          value={idx}
+          onChange={(e) => setIdx(Number(e.target.value))}
+          className="w-full mt-2 accent-emerald-400"
+        />
+      </div>
     );
   };
 
@@ -392,8 +504,9 @@ function App() {
     const weekdayCounts = [0,0,0,0,0,0,0];
     events.forEach(e => { const d = new Date(e.date+'T00:00:00'); weekdayCounts[d.getDay()]++; });
     const daysWithSkip = series.skips.filter(s => s > 0).length;
-    const consistency = series.skips.length ? Math.round((daysWithSkip / series.skips.length) * 100) : 0;
-    return { totalSkips30, totalMoney30, totalCalories30, streak, todaySkips, avgSkips, deltaSkips, weekdayCounts, consistency };
+    const totalDays = series.skips.length;
+    const consistency = totalDays ? Math.round((daysWithSkip / totalDays) * 100) : 0;
+    return { totalSkips30, totalMoney30, totalCalories30, streak, todaySkips, avgSkips, deltaSkips, weekdayCounts, consistency, daysWithSkip, totalDays };
   })();
 
   // Lightweight confetti (no deps)
@@ -657,17 +770,36 @@ function App() {
                         { name: 'Sat', value: derived.weekdayCounts[6], color: '#22d3ee' },
                       ]} />
                     </Card>
+                    
                     <Card>
-                      <div className="text-white font-semibold mb-3">Each skip (size = calories)</div>
-                      <BubbleTimeline data={events.map(e => ({ value: e.calories, money: e.money }))} />
-                      <div className="text-xs text-gray-400 mt-2">Blue = higher $ saved • Green = lower $</div>
+                      <div className="text-white font-semibold mb-3">Recent wins</div>
+                      <ul className="divide-y divide-white/10">
+                        {events.slice(-6).reverse().map((e, i) => (
+                          <li key={i} className="flex items-center justify-between py-2">
+                            <div className="text-white/80 text-sm">
+                              {new Date(e.date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', weekday: 'short' })}
+                            </div>
+                            <div className="flex items-center gap-4 text-sm">
+                              <span className="px-2 py-1 rounded-lg bg-rose-500/15 text-rose-300 border border-rose-400/20">{fmtNumber(e.calories)} cal</span>
+                              <span className="px-2 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-400/20">{fmtMoney(e.money)}</span>
+                            </div>
+                          </li>
+                        ))}
+                        {events.length === 0 && (
+                          <li className="py-2 text-white/60 text-sm">No wins yet. Tap “Skip a Drink” to start.</li>
+                        )}
+                      </ul>
                     </Card>
                     <Card>
                       <div className="text-white font-semibold mb-3">Consistency (30d)</div>
-                      <Donut label={`${derived.consistency}%`} segments={[
-                        { name: 'Days with a win', value: derived.consistency, color: '#10b981' },
-                        { name: 'Days to fill', value: 100 - derived.consistency, color: '#1f2937' },
-                      ]} />
+                      <div className="flex items-center gap-6">
+                        <Gauge percent={derived.consistency} valueLabel={`${derived.daysWithSkip}/${derived.totalDays} days`} subLabel="with at least one win" />
+                        <div className="space-y-2 text-sm">
+                          <div className="text-white/80"><span className="text-white font-semibold">Current streak:</span> {derived.streak} days</div>
+                          <div className="text-white/80"><span className="text-white font-semibold">Avg wins/day:</span> {Math.max(0, Math.round((derived.avgSkips)*100)/100)}</div>
+                          <div className="text-white/60">Aim for 4+ wins/week to build momentum</div>
+                        </div>
+                      </div>
                     </Card>
                     <Card>
                       <div className="text-white font-semibold mb-3">Top drinks skipped</div>
