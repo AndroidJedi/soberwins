@@ -3,6 +3,7 @@ import { ArrowRight, Zap, DollarSign, Heart, Share2 } from 'lucide-react';
 import SkipDrinkModal from './components/SkipDrinkModal';
 import AuthModal from './components/AuthModal';
 import ResetPasswordModal from './components/ResetPasswordModal';
+import EarlyAccessModal from './components/EarlyAccessModal';
 import { supabase } from './lib/supabaseClient';
 
 // Count-up helper (custom hook)
@@ -38,6 +39,10 @@ function App() {
   const [isSkipDrinkModalOpen, setIsSkipDrinkModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isEarlyAccessOpen, setIsEarlyAccessOpen] = useState(false);
+  const [promoEvents, setPromoEvents] = useState<Array<{ occurred_at: string; total_calories: number; total_money: number; details: any }>>([]);
+  const [promoModeDashboard, setPromoModeDashboard] = useState(false);
+  const [promoSkipsCount, setPromoSkipsCount] = useState(0);
   const [isAuthed, setIsAuthed] = useState(false);
   const [series, setSeries] = useState<{
     dates: string[];
@@ -153,6 +158,59 @@ function App() {
   useEffect(() => {
     fetchSeries();
   }, [isAuthed]);
+
+  // Derive promo series when in promo mode
+  useEffect(() => {
+    if (!promoModeDashboard) return;
+    const days = 30;
+    const from = new Date();
+    from.setDate(from.getDate() - (days - 1));
+    const dateKey = (d: Date) => d.toISOString().slice(0, 10);
+    const buckets = new Map<string, { skips: number; calories: number; money: number }>();
+    for (let i = 0; i < days; i++) {
+      const d = new Date(from);
+      d.setDate(from.getDate() + i);
+      buckets.set(dateKey(d), { skips: 0, calories: 0, money: 0 });
+    }
+    promoEvents.forEach((r) => {
+      const d = new Date(r.occurred_at);
+      const k = dateKey(d);
+      const b = buckets.get(k);
+      if (b) {
+        b.skips += 1;
+        b.calories += r.total_calories || 0;
+        b.money += Number(r.total_money || 0);
+      }
+    });
+    const dates: string[] = Array.from(buckets.keys()).sort();
+    const skips = dates.map((k) => buckets.get(k)!.skips);
+    const calories = dates.map((k) => buckets.get(k)!.calories);
+    const money = dates.map((k) => buckets.get(k)!.money);
+    setSeries({ dates, skips, calories, money });
+    setEvents(promoEvents.map(r => ({ date: new Date(r.occurred_at).toISOString().slice(0,10), calories: r.total_calories || 0, money: Number(r.total_money || 0) })));
+
+    // Compute top drinks/snacks from promo details
+    const drinkCounts: Record<string, number> = {};
+    const snackCounts: Record<string, number> = {};
+    promoEvents.forEach(r => {
+      const det: any = r.details || {};
+      const d: Record<string, number> = det.drinks || {};
+      const s: Record<string, number> = det.snacks || {};
+      Object.entries(d).forEach(([id, qty]) => {
+        const q = Number(qty as any) || 0;
+        drinkCounts[id] = (drinkCounts[id] || 0) + q;
+      });
+      Object.entries(s).forEach(([id, qty]) => {
+        const q = Number(qty as any) || 0;
+        snackCounts[id] = (snackCounts[id] || 0) + q;
+      });
+    });
+    const toSorted = (obj: Record<string, number>) => Object.entries(obj)
+      .sort((a,b)=>b[1]-a[1])
+      .map(([id,count])=>({ id, count }));
+    setTopDrinks(toSorted(drinkCounts));
+    setTopSnacks(toSorted(snackCounts));
+  }, [promoModeDashboard, promoEvents]);
 
   const Sparkline = ({ values, stroke = '#10b981', format, avg }: { values: number[]; stroke?: string; format?: (n: number) => string; avg?: number }) => {
     const w = 200;
@@ -579,7 +637,21 @@ function App() {
     if (isAuthed) {
       setIsSkipDrinkModalOpen(true);
     } else {
-      setIsAuthModalOpen(true);
+      // Promo mode: let user add a local win
+      setIsSkipDrinkModalOpen(true);
+    }
+  };
+
+  const handlePromoSave = (e: { occurred_at: string; total_calories: number; total_money: number; details: any }) => {
+    if (promoSkipsCount === 0) {
+      setPromoEvents([e]);
+      setPromoSkipsCount(1);
+      setPromoModeDashboard(true);
+    } else if (promoSkipsCount === 1) {
+      setPromoEvents(prev => [...prev, e]);
+      setPromoSkipsCount(2);
+    } else {
+      setIsEarlyAccessOpen(true);
     }
   };
 
@@ -682,12 +754,12 @@ function App() {
             {isAuthed && (
               <canvas ref={confettiRef} className="pointer-events-none absolute left-0 right-0 mx-auto top-24 w-full h-[300px]" />
             )}
-            <div className={isAuthed ? "w-full" : "max-w-2xl"}>
+            <div className={(isAuthed || promoModeDashboard) ? "w-full" : "max-w-2xl"}>
 
               
 
               {/* Main Headline (hidden when signed in) */}
-              {!isAuthed && (
+              {!isAuthed && !promoModeDashboard && (
               <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white mb-8 leading-[0.9] tracking-tight mt-32 sm:mt-0">
                 Your first sober win{' '}
                 <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">
@@ -696,26 +768,32 @@ function App() {
               </h1>
               )}
               
-              {!isAuthed ? (
+              {(!isAuthed && !promoModeDashboard) && (
               <p className="text-2xl lg:text-3xl text-gray-200 mb-12 leading-relaxed font-light">
                 Soon you'll be able to track your own sober wins. Every skip adds up: calories avoided, money saved, energy regained.
               </p>
-              ) : (
-                <div className="mb-10 flex flex-wrap items-center gap-4">
-                  <div className="relative w-full">
-                    <div className="absolute -inset-3 rounded-[28px] bg-gradient-to-r from-emerald-400/40 via-teal-400/40 to-cyan-400/40 blur-3xl opacity-80 transition" />
-                    <button 
-                      onClick={handleSkipClick}
-                      className="relative w-full group inline-flex items-center justify-center gap-5 px-14 py-8 text-3xl font-black tracking-tight text-black bg-gradient-to-r from-emerald-400 to-teal-400 rounded-3xl transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl hover:shadow-emerald-400/40 focus:outline-none focus:ring-8 focus:ring-emerald-400/30 shadow-xl"
-                    >
-                      <span>Skip a Drink</span>
-                      <ArrowRight className="w-8 h-8 transition-transform group-hover:translate-x-1" />
-                    </button>
-                  </div>
-                </div>
               )}
+
+              <div className="mb-10 flex flex-wrap items-center gap-4">
+                <div className="relative w-full">
+                  <div className="absolute -inset-3 rounded-[28px] bg-gradient-to-r from-emerald-400/40 via-teal-400/40 to-cyan-400/40 blur-3xl opacity-80 transition" />
+                  <button 
+                    onClick={() => {
+                      if (!isAuthed && promoSkipsCount >= 2) {
+                        setIsEarlyAccessOpen(true);
+                      } else {
+                        handleSkipClick();
+                      }
+                    }}
+                    className="relative w-full group inline-flex items-center justify-center gap-5 px-14 py-8 text-3xl font-black tracking-tight text-black bg-gradient-to-r from-emerald-400 to-teal-400 rounded-3xl transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl hover:shadow-emerald-400/40 focus:outline-none focus:ring-8 focus:ring-emerald-400/30 shadow-xl"
+                  >
+                    <span>Skip a Drink</span>
+                    <ArrowRight className="w-8 h-8 transition-transform group-hover:translate-x-1" />
+                  </button>
+                </div>
+              </div>
               
-              {!isAuthed && (
+              {!isAuthed && !promoModeDashboard && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
                 <div className="flex items-center gap-4 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl px-6 py-4 hover:bg-white/15 transition-all duration-300 group">
                   <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-pink-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -749,7 +827,7 @@ function App() {
               </div>
               )}
 
-              {isAuthed && series && derived && (
+              {(isAuthed || promoModeDashboard) && series && derived && (
                 <>
                   {/* Premium clean layout */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
@@ -853,16 +931,10 @@ function App() {
                 </>
               )}
               
-              {!isAuthed && (
-              <div className="flex flex-col sm:flex-row gap-6 mb-10">
-                  <button onClick={() => setIsAuthModalOpen(true)} className="group inline-flex items-center justify-center gap-3 px-10 py-5 text-xl font-semibold text-white border-2 border-white/30 rounded-2xl transition-all duration-300 hover:border-white hover:bg-white/10 backdrop-blur-md min-w-[220px]">
-                    <span>Sign in</span>
-                </button>
-              </div>
-              )}
+              {/* removed hero sign-in button for promo mode */}
               
               {/* Bottom Text (hidden when signed in) */}
-              {!isAuthed && (
+              {!isAuthed && !promoModeDashboard && (
               <div className="space-y-3">
                 <p className="text-xl text-gray-200 font-medium">
                   Be among the first to join the sober wins movement
@@ -1097,6 +1169,8 @@ function App() {
         onRequestSignIn={() => setIsAuthModalOpen(true)}
         isAuthed={isAuthed}
         onSaved={() => fetchSeries()}
+        promoMode={!isAuthed}
+        onPromoSave={handlePromoSave}
       />
 
       {/* Auth Modal */}
@@ -1113,6 +1187,12 @@ function App() {
         onUpdated={() => {
           setIsResetModalOpen(false);
         }}
+      />
+
+      {/* Early Access Modal */}
+      <EarlyAccessModal
+        isOpen={isEarlyAccessOpen}
+        onClose={() => setIsEarlyAccessOpen(false)}
       />
 
       

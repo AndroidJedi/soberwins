@@ -26,6 +26,8 @@ interface SkipDrinkModalProps {
   onRequestSignIn?: () => void;
   isAuthed?: boolean;
   onSaved?: () => void;
+  promoMode?: boolean;
+  onPromoSave?: (event: { occurred_at: string; total_calories: number; total_money: number; details: any }) => void;
 }
 
 const drinks: Drink[] = [
@@ -70,7 +72,7 @@ const snacks: Snack[] = [
   { id: 'milkshake', name: 'Milkshake', emoji: '🥤', calories: 400, price: 7, category: 'extras' },
 ];
 
-export default function SkipDrinkModal({ isOpen, onClose, onRequestSignIn, isAuthed, onSaved }: SkipDrinkModalProps) {
+export default function SkipDrinkModal({ isOpen, onClose, onRequestSignIn, isAuthed, onSaved, promoMode, onPromoSave }: SkipDrinkModalProps) {
   const [step, setStep] = useState(1);
   const [selectedDrinks, setSelectedDrinks] = useState<Record<string, number>>({});
   const [selectedSnacks, setSelectedSnacks] = useState<Record<string, number>>({});
@@ -165,6 +167,21 @@ export default function SkipDrinkModal({ isOpen, onClose, onRequestSignIn, isAut
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handlePromoSave = () => {
+    const details = {
+      drinks: selectedDrinks,
+      snacks: selectedSnacks,
+    };
+    const totals = calculateTotals();
+    onPromoSave?.({
+      occurred_at: new Date().toISOString(),
+      total_calories: totals.totalCalories,
+      total_money: totals.totalPrice,
+      details,
+    });
+    handleClose();
   };
 
   const resetModal = () => {
@@ -557,13 +574,22 @@ export default function SkipDrinkModal({ isOpen, onClose, onRequestSignIn, isAut
             </div>
             <div className="mt-6">
               {!isAuthed ? (
-                <button
-                  onClick={handleSignInPrompt}
-                  className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-4 px-6 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 flex items-center justify-center gap-2"
-                >
-                  <LogIn className="w-5 h-5" />
-                  Sign in to save this win
-                </button>
+                promoMode ? (
+                  <button
+                    onClick={handlePromoSave}
+                    className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-4 px-6 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300"
+                  >
+                    Add this win
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSignInPrompt}
+                    className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-4 px-6 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 flex items-center justify-center gap-2"
+                  >
+                    <LogIn className="w-5 h-5" />
+                    Sign in to save this win
+                  </button>
+                )
               ) : (
                 <button
                   onClick={handleSaveWin}
