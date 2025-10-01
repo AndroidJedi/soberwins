@@ -8,8 +8,7 @@ export default defineConfig({
     exclude: ['lucide-react'],
   },
   server: {
-    host: 'soberwins.localhost',
+    host: 'localhost',
     port: 5173,
-    open: 'http://soberwins.localhost:5173/',
   },
 });
