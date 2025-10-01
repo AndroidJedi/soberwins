@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { X, LogIn } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 type Props = {
@@ -17,6 +16,14 @@ export default function AuthModal({ isOpen, onClose, onSignedIn }: Props) {
   const [infoMessage, setInfoMessage] = useState<string>('');
 
   if (!isOpen) return null;
+
+  const handleClose = () => {
+    setStatus('idle');
+    setErrorMessage('');
+    setInfoMessage('');
+    setMode('sign_in');
+    onClose();
+  };
 
   const signInAnonymously = async () => {
     try {
@@ -91,13 +98,13 @@ export default function AuthModal({ isOpen, onClose, onSignedIn }: Props) {
       <div className="bg-gray-900 border border-white/10 rounded-2xl p-6 w-[90%] max-w-md shadow-xl">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-white text-xl font-bold">{mode === 'sign_in' ? 'Sign In' : mode === 'sign_up' ? 'Create account' : 'Reset password'}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
+          <button onClick={handleClose} className="text-gray-400 hover:text-white">✕</button>
         </div>
         <div className="space-y-3">
           <input
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => { setEmail(e.target.value); if (errorMessage) setErrorMessage(''); if (infoMessage) setInfoMessage(''); }}
             placeholder="you@example.com"
             className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-400"
           />
@@ -105,7 +112,7 @@ export default function AuthModal({ isOpen, onClose, onSignedIn }: Props) {
             <input
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => { setPassword(e.target.value); if (errorMessage) setErrorMessage(''); if (infoMessage) setInfoMessage(''); }}
               placeholder="Password"
               className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-400"
             />
@@ -124,14 +131,6 @@ export default function AuthModal({ isOpen, onClose, onSignedIn }: Props) {
               <button onClick={() => { setMode('forgot'); setErrorMessage(''); setInfoMessage(''); }} className="text-sm text-emerald-300 hover:underline">Forgot password?</button>
             </div>
           )}
-          <button
-            onClick={signInAnonymously}
-            disabled={status === 'loading'}
-            className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white font-semibold hover:bg-white/15 disabled:opacity-60 flex items-center justify-center gap-2"
-          >
-            <LogIn className="w-5 h-5" />
-            Continue anonymously
-          </button>
         </div>
         {errorMessage && (
           <p className="mt-3 text-sm text-red-400">{errorMessage}</p>
@@ -140,9 +139,7 @@ export default function AuthModal({ isOpen, onClose, onSignedIn }: Props) {
           <p className="mt-3 text-sm text-emerald-300">{infoMessage}</p>
         )}
         <div className="text-gray-400 text-sm mt-4">
-          {mode === 'sign_in' && (
-            <button onClick={() => setMode('sign_up')} className="text-emerald-300 hover:underline">Create an account</button>
-          )}
+          {/* Create account disabled for promo version */}
           {mode === 'sign_up' && (
             <button onClick={() => setMode('sign_in')} className="text-emerald-300 hover:underline">Have an account? Sign in</button>
           )}

@@ -716,26 +716,34 @@ function App() {
 
             {/* Right Controls */}
             <div className="inline-flex items-center gap-3">
-              {isAuthed && (
-                <button onClick={handleShare} className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl border border-white/15 text-white/80 bg-white/5 hover:bg-white/10 backdrop-blur-md transition shadow-md">
-                  <Share2 className="w-5 h-5" />
-                  Share Progress
-                </button>
-              )}
-              {!isAuthed ? (
-                <button
-                  onClick={() => setIsAuthModalOpen(true)}
-                  className="px-4 py-2 text-sm font-semibold text-white/90 border border-white/20 rounded-xl hover:bg-white/10"
-                >
-                  Sign in
-                </button>
+              {isAuthed ? (
+                <>
+                  <button onClick={handleShare} className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl border border-white/15 text-white/80 bg-white/5 hover:bg-white/10 backdrop-blur-md transition shadow-md">
+                    <Share2 className="w-5 h-5" />
+                    Share Progress
+                  </button>
+                  <button
+                    onClick={handleSignOut}
+                    className="px-4 py-2 text-sm font-semibold text-white/90 border border-white/20 rounded-xl hover:bg-white/10"
+                  >
+                    Sign out
+                  </button>
+                </>
               ) : (
-                <button
-                  onClick={handleSignOut}
-                  className="px-4 py-2 text-sm font-semibold text-white/90 border border-white/20 rounded-xl hover:bg-white/10"
-                >
-                  Sign out
-                </button>
+                <>
+                  <button
+                    onClick={() => setIsEarlyAccessOpen(true)}
+                    className="px-4 py-2 text-sm font-bold text-black bg-gradient-to-r from-emerald-400 to-teal-400 rounded-xl hover:opacity-90"
+                  >
+                    Request Early Access
+                  </button>
+                  <button
+                    onClick={() => setIsAuthModalOpen(true)}
+                    className="px-4 py-2 text-sm font-semibold text-white/90 border border-white/20 rounded-xl hover:bg-white/10"
+                  >
+                    Sign in
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -1178,6 +1186,7 @@ function App() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         onSignedIn={() => setIsAuthed(true)}
+        onRequestEarlyAccess={() => setIsEarlyAccessOpen(true)}
       />
 
       {/* Reset Password Modal */}
