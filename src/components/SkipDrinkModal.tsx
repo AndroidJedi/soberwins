@@ -258,10 +258,10 @@ export default function SkipDrinkModal({ isOpen, onClose, onRequestSignIn, isAut
   );
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-gray-900 border border-gray-700 rounded-2xl max-w-2xl w-full my-auto flex flex-col" style={{ maxHeight: 'calc(100vh - 2rem)' }}>
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-gray-700 flex-shrink-0">
           <h2 className="text-2xl font-bold text-white">
             {step === 1 && "What drinks are you skipping?"}
             {step === 2 && "Any snacks you're avoiding too?"}
@@ -277,87 +277,95 @@ export default function SkipDrinkModal({ isOpen, onClose, onRequestSignIn, isAut
 
         {/* Step 1: Drink Selection */}
         {step === 1 && (
-          <div className="p-6">
-            <p className="text-gray-300 mb-6">Select the drinks you're choosing to skip today:</p>
+          <>
+            <div className="flex-1 overflow-y-auto p-6">
+              <p className="text-gray-300 mb-6">Select the drinks you're choosing to skip today:</p>
+              
+              {renderItemGrid(visibleDrinks, selectedDrinks, updateDrinkQuantity)}
+              
+              {/* Show More/Less Button */}
+              {!showMoreDrinks && popularDrinks.length > 0 && (
+                <button
+                  onClick={() => setShowMoreDrinks(true)}
+                  className="w-full mt-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  <span>Show More Drinks ({popularDrinks.length} more)</span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              )}
+              
+              {showMoreDrinks && (
+                <button
+                  onClick={() => setShowMoreDrinks(false)}
+                  className="w-full mt-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  <span>Show Less</span>
+                  <ChevronUp className="w-4 h-4" />
+                </button>
+              )}
+            </div>
             
-            {renderItemGrid(visibleDrinks, selectedDrinks, updateDrinkQuantity)}
-            
-            {/* Show More/Less Button */}
-            {!showMoreDrinks && popularDrinks.length > 0 && (
+            <div className="p-6 border-t border-gray-700 flex-shrink-0">
               <button
-                onClick={() => setShowMoreDrinks(true)}
-                className="w-full mt-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+                onClick={() => setStep(2)}
+                disabled={!hasSelectedDrinks}
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-4 px-6 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                <span>Show More Drinks ({popularDrinks.length} more)</span>
-                <ChevronDown className="w-4 h-4" />
+                <span>Continue</span>
+                <ArrowRight className="w-5 h-5" />
               </button>
-            )}
-            
-            {showMoreDrinks && (
-              <button
-                onClick={() => setShowMoreDrinks(false)}
-                className="w-full mt-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
-              >
-                <span>Show Less</span>
-                <ChevronUp className="w-4 h-4" />
-              </button>
-            )}
-
-            <button
-              onClick={() => setStep(2)}
-              disabled={!hasSelectedDrinks}
-              className="w-full mt-8 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-4 px-6 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              <span>Continue</span>
-              <ArrowRight className="w-5 h-5" />
-            </button>
-          </div>
+            </div>
+          </>
         )}
 
         {/* Step 2: Snack Selection */}
         {step === 2 && (
-          <div className="p-6">
-            <p className="text-gray-300 mb-6">Often drinks come with snacks. Skip those too?</p>
-            
-            {renderItemGrid(visibleSnacks, selectedSnacks, updateSnackQuantity)}
-            
-            {/* Show More/Less Button */}
-            {!showMoreSnacks && otherSnacks.length > 0 && (
-              <button
-                onClick={() => setShowMoreSnacks(true)}
-                className="w-full mt-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
-              >
-                <span>Show More Options ({otherSnacks.length} more)</span>
-                <ChevronDown className="w-4 h-4" />
-              </button>
-            )}
-            
-            {showMoreSnacks && (
-              <button
-                onClick={() => setShowMoreSnacks(false)}
-                className="w-full mt-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
-              >
-                <span>Show Less</span>
-                <ChevronUp className="w-4 h-4" />
-              </button>
-            )}
-
-            <div className="flex gap-4 mt-8">
-              <button
-                onClick={() => setStep(1)}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-4 px-6 rounded-xl transition-colors"
-              >
-                Back
-              </button>
-              <button
-                onClick={() => setStep(3)}
-                className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-4 px-6 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 flex items-center justify-center gap-2"
-              >
-                <span>See My Win</span>
-                <ArrowRight className="w-5 h-5" />
-              </button>
+          <>
+            <div className="flex-1 overflow-y-auto p-6">
+              <p className="text-gray-300 mb-6">Often drinks come with snacks. Skip those too?</p>
+              
+              {renderItemGrid(visibleSnacks, selectedSnacks, updateSnackQuantity)}
+              
+              {/* Show More/Less Button */}
+              {!showMoreSnacks && otherSnacks.length > 0 && (
+                <button
+                  onClick={() => setShowMoreSnacks(true)}
+                  className="w-full mt-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  <span>Show More Options ({otherSnacks.length} more)</span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              )}
+              
+              {showMoreSnacks && (
+                <button
+                  onClick={() => setShowMoreSnacks(false)}
+                  className="w-full mt-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  <span>Show Less</span>
+                  <ChevronUp className="w-4 h-4" />
+                </button>
+              )}
             </div>
-          </div>
+
+            <div className="p-6 border-t border-gray-700 flex-shrink-0">
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setStep(1)}
+                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-4 px-6 rounded-xl transition-colors"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={() => setStep(3)}
+                  className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-4 px-6 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 flex items-center justify-center gap-2"
+                >
+                  <span>See My Win</span>
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </>
         )}
 
         {/* Step 3: Win Summary */}
