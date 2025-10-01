@@ -736,8 +736,17 @@ function App() {
                     Share Progress
                   </button>
                   <button
-                    onClick={handleSignOut}
-                    className="px-4 py-2 text-sm font-semibold text-white/90 border border-white/20 rounded-xl hover:bg-white/10 touch-manipulation"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleSignOut();
+                    }}
+                    onTouchEnd={(e) => {
+                      e.preventDefault();
+                      handleSignOut();
+                    }}
+                    className="px-4 py-2 text-sm font-semibold text-white/90 border border-white/20 rounded-xl hover:bg-white/10 active:bg-white/20 cursor-pointer"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
                   >
                     Sign out
                   </button>
