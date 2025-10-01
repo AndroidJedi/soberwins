@@ -658,6 +658,14 @@ function App() {
   const handleSignOut = async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
+    // Reset all state
+    setPromoEvents([]);
+    setPromoSkipsCount(0);
+    setPromoModeDashboard(false);
+    setSeries(null);
+    setEvents([]);
+    setTopDrinks([]);
+    setTopSnacks([]);
   };
 
   const handleShare = async () => {
@@ -1186,7 +1194,6 @@ function App() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         onSignedIn={() => setIsAuthed(true)}
-        onRequestEarlyAccess={() => setIsEarlyAccessOpen(true)}
       />
 
       {/* Reset Password Modal */}
